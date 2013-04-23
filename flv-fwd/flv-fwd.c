@@ -211,7 +211,7 @@ int main(int argc, char *argv[]) {
   GstElement *source, *source2, *sink, *selector, *aselector, *asink; 
   GstElement *vdec1, *vdec2, *vdepay1, *vdepay2,  *adec1, *adec2, *adepay1, *adepay2;  
   GstElement *vq1, *vq2, *aq1, *aq2, *voq, *aoq;
-  GstElement *tol1, *tol2, *tolo, *aresample, *vrate;
+  GstElement *tol1, *tol2, *tolo, *aresample, *vrate, *identity;
   GstElement *vtee, *atee;
   GstElement *aenc, *aconv, *vconv, *venc, *aencq, *vencq, *vmuxq, *amuxq, *mux, *rtmpq;
   GstElement *filesink, *rtmpsink;
@@ -264,6 +264,7 @@ int main(int argc, char *argv[]) {
   filesink    = gst_element_factory_make ("filesink",      "filesink");
   rtmpsink    = gst_element_factory_make ("rtmpsink",      "rtmpsink");
   rtmpq       = gst_element_factory_make ("queue",         "rtmpq");
+  identity    = gst_element_factory_make ("identity",      "identity");
 
 
   /* Create the empty pipeline */
@@ -273,7 +274,7 @@ int main(int argc, char *argv[]) {
       !sink || !asink || !vdepay1 || !vdepay2 || !vdec1 || !vdec1 || !adepay1 || !adepay2 || !adec1 || !adec2 ||
       !vq1 || !vq2 || !aq1 || !aq2 || !aoq || !voq || !tol1 || !tol2 || !tolo || !aresample || !vtee || !atee ||
       !aenc || !aconv || !vconv || !venc || !aencq || !vencq || !amuxq || !vmuxq || !mux || !filesink || 
-      !rtmpq || !rtmpsink
+      !rtmpq || !rtmpsink || !identity
       ) {
     g_printerr ("Not all elements could be created.\n");
     return -1;
@@ -316,14 +317,15 @@ int main(int argc, char *argv[]) {
   gst_bin_add (GST_BIN (pipeline), amuxq);
   gst_bin_add (GST_BIN (pipeline), vmuxq);
   gst_bin_add (GST_BIN (pipeline), mux);
-  gst_bin_add (GST_BIN (pipeline), filesink);
-//  gst_bin_add (GST_BIN (pipeline), rtmpsink);
+//  gst_bin_add (GST_BIN (pipeline), filesink);
+  gst_bin_add (GST_BIN (pipeline), rtmpsink);
   gst_bin_add (GST_BIN (pipeline), rtmpq);
-//  gst_bin_add (GST_BIN (pipeline), vrate);
+  gst_bin_add (GST_BIN (pipeline), vrate);
+  gst_bin_add (GST_BIN (pipeline), identity);
 
 /*****   VIDEO OUTPUT SIDE ****/
 
-  if (gst_element_link_many (selector, tolo, voq, vtee, NULL) != TRUE) {
+  if (gst_element_link_many (selector, tolo, identity, voq, NULL) != TRUE) {
     g_printerr ("Video output pipe could not be linked.\n");
     gst_object_unref (pipeline);
     return -1;
@@ -331,7 +333,7 @@ int main(int argc, char *argv[]) {
 
 /*****   AUDIO OUTPUT SIDE ****/
 
-  if (gst_element_link_many (aselector, aresample, aoq, atee, NULL) != TRUE) {
+  if (gst_element_link_many (aselector, aresample, aoq, NULL) != TRUE) {
     g_printerr ("Audio output pipe could not be linked.\n");
     gst_object_unref (pipeline);
     return -1;
@@ -340,13 +342,14 @@ int main(int argc, char *argv[]) {
 /*** MULTIPLEXED FLV SIDE ***/
   
 
-  if (gst_element_link_many (vtee,vencq,venc,vmuxq, mux, filesink, NULL) != TRUE) {
+//  if (gst_element_link_many (voq,vencq,venc,vmuxq, mux, rtmpsink, NULL) != TRUE) {
+  if (gst_element_link_many (voq,venc,mux,rtmpsink, NULL) != TRUE) {
     g_printerr ("FLV video mux pipe could not be linked.\n");
     gst_object_unref (pipeline);
     return -1;
   }
 
-  if (gst_element_link_many (atee,amuxq, mux, NULL) != TRUE) {
+  if (gst_element_link_many (aoq, aencq,amuxq, mux, NULL) != TRUE) {
     g_printerr ("FLV audio mux pipe could not be linked.\n");
    gst_object_unref (pipeline);
     return -1;
@@ -355,8 +358,10 @@ int main(int argc, char *argv[]) {
 
   /* Modify the source's properties */
 
-  g_object_set (source, "location", "rtsp://ec2-54-235-164-155.compute-1.amazonaws.com:8554/test", NULL);
-  g_object_set (source2, "location", "rtsp://ec2-54-225-91-241.compute-1.amazonaws.com:8554/test", NULL);
+  //g_object_set (source, "location", "rtsp://ec2-54-235-164-155.compute-1.amazonaws.com:8554/test", NULL);
+  //g_object_set (source2, "location", "rtsp://ec2-54-225-91-241.compute-1.amazonaws.com:8554/test", NULL);
+  g_object_set (source, "location", "rtsp://10.152.178.56:8554/test", NULL);
+  g_object_set (source2, "location", "rtsp://10.144.76.30:8554/test", NULL);
 
   g_object_set (rtmpsink, "location",
   "rtmp://1.7669465.fme.ustream.tv/ustreamVideo/7669465/dX3r3M2m3mAfLwfA7hCa9YQXc3FntQum flashver=FME/2.5 (compatible; FMSc 1.0)",NULL);
@@ -364,6 +369,8 @@ int main(int argc, char *argv[]) {
 
   g_object_set (selector, "sync-streams", TRUE, NULL);
   g_object_set (aselector, "sync-streams", TRUE, NULL);
+
+  g_object_set (identity, "single-segment", TRUE, NULL);
 
   g_object_set (tol1, "halign","left", NULL);
   g_object_set (tol1, "valign","top", NULL);

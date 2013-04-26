@@ -5,20 +5,27 @@ static GstElement *pipeline;
 static int v_channel = 0;
 static int a_channel = 0;
 
-static active_channel = 0;
+static int active_channel = 0;
 
 static gboolean
 do_switch (GstElement * pipeline)
 {
+  int other_channel;
   GstElement *select;
   GstElement *aselect;
   GstStateChangeReturn ret;
   gchar *name;
+  gchar *othername;
   GstPad *pad;
   GstPad *apad;
+  GstPad *otherPad;
+  GstPad *aotherPad;
   gint64 v_stoptime, a_stoptime;
+  gint64 v_starttime, a_starttime;
+  gint64 v_runningtime, a_runningtime;
   gint64 starttime, stoptime;
 
+  other_channel  = active_channel ? 0 : 1;
   active_channel = active_channel ? 0 : 1;
 
   GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "foo");
@@ -37,16 +44,24 @@ do_switch (GstElement * pipeline)
 
   /* get the named pad */
   name = g_strdup_printf ("sink%d", active_channel);
-//  g_print ("switching to pad %s\n", name);
+  othername = g_strdup_printf ("sink%d", other_channel);
  
   pad = gst_element_get_static_pad (select, name);
+  otherPad = gst_element_get_static_pad (select, othername);
   apad = gst_element_get_static_pad (aselect, name);
+  aotherPad = gst_element_get_static_pad (aselect, othername);
 
   if (!pad) {
      g_print("Input selector pad %s not found\n", name);
   }
   if (!apad) {
      g_print("Audio Input selector pad %s not found\n", name);
+  }
+  if (!otherPad) {
+     g_print("Input selector pad %s not found\n", othername);
+  }
+  if (!aotherPad) {
+     g_print("Input selector pad %s not found\n", othername);
   }
 
   /* set the active pad */
@@ -55,15 +70,22 @@ do_switch (GstElement * pipeline)
   g_signal_emit_by_name (aselect, "block", &a_stoptime);
 
   if (v_stoptime > a_stoptime) {
-     stoptime = a_stoptime;
-     starttime = v_stoptime;
-  } else {
      stoptime = v_stoptime;
-     starttime = a_stoptime;
+  } else {
+     stoptime = a_stoptime;
   }
+
+  //gst_pad_get_property (otherPad, "running-time", &v_runningtime);
+  //gst_pad_get_property (aotherPad, (const char *)"running-time", &a_runningtime);
   
-  g_signal_emit_by_name (select, "switch", pad, stoptime, starttime);
-  g_signal_emit_by_name (aselect, "switch", apad, stoptime, starttime);
+//  if (v_runningtime > a_runningtime) {
+//     stoptime = a_runningtime;
+//  } else {
+//     stoptime = v_runningtime;
+//  } 
+
+  g_signal_emit_by_name (select, "switch", pad, stoptime, -1);
+  g_signal_emit_by_name (aselect, "switch", apad, stoptime,-1);
 
   g_free (name);
 
@@ -358,10 +380,10 @@ int main(int argc, char *argv[]) {
 
   /* Modify the source's properties */
 
-  //g_object_set (source, "location", "rtsp://ec2-54-235-164-155.compute-1.amazonaws.com:8554/test", NULL);
-  //g_object_set (source2, "location", "rtsp://ec2-54-225-91-241.compute-1.amazonaws.com:8554/test", NULL);
-  g_object_set (source, "location", "rtsp://10.152.178.56:8554/test", NULL);
-  g_object_set (source2, "location", "rtsp://10.144.76.30:8554/test", NULL);
+  g_object_set (source, "location", "rtsp://ec2-54-235-164-155.compute-1.amazonaws.com:8554/test", NULL);
+  g_object_set (source2, "location", "rtsp://ec2-54-225-91-241.compute-1.amazonaws.com:8554/test", NULL);
+//  g_object_set (source, "location", "rtsp://10.152.178.56:8554/test", NULL);
+//  g_object_set (source2, "location", "rtsp://10.144.76.30:8554/test", NULL);
 
   g_object_set (rtmpsink, "location",
   "rtmp://1.7669465.fme.ustream.tv/ustreamVideo/7669465/dX3r3M2m3mAfLwfA7hCa9YQXc3FntQum flashver=FME/2.5 (compatible; FMSc 1.0)",NULL);

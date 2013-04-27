@@ -37,7 +37,7 @@ int main (int argc, char *argv[])
   strcpy (cmd, "( videotestsrc pattern=");
   sprintf(patt,"%d", reqPattern);
   strcat (cmd, patt);
-  strcat (cmd, " ! video/x-raw-yuv,width=320,height=240,framerate=10/1 ! x264enc ! queue ! rtph264pay name=pay0 pt=96  audiotestsrc freq=");
+  strcat (cmd, " ! video/x-raw-yuv,width=640,height=480,framerate=10/1 ! x264enc ! queue ! rtph264pay name=pay0 pt=96  audiotestsrc freq=");
   sprintf(tone,"%d", reqTone);
   strcat (cmd, tone);
   strcat (cmd, " ! audio/x-raw-int,rate=8000 ! alawenc ! rtppcmapay name=pay1 pt=97 "")");

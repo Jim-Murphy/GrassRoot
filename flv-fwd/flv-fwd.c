@@ -382,6 +382,9 @@ int main(int argc, char *argv[]) {
 
   g_object_set (source, "location", "rtsp://ec2-54-235-164-155.compute-1.amazonaws.com:8554/test", NULL);
   g_object_set (source2, "location", "rtsp://ec2-54-225-91-241.compute-1.amazonaws.com:8554/test", NULL);
+
+//  g_object_set (source2, "location", "rtsp://83.218.202.202:1935/live/wt_national_tv.stream",NULL);
+
 //  g_object_set (source, "location", "rtsp://10.152.178.56:8554/test", NULL);
 //  g_object_set (source2, "location", "rtsp://10.144.76.30:8554/test", NULL);
 

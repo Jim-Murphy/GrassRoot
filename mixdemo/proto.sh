@@ -28,7 +28,7 @@ queue max-size-bytes=100000000 max-size-time=0 ! mix. \
 vch1. ! vsel. \
 vch2. ! vsel. \
 \
-videomixer name=mix sink_1::alpha=1.0 ! \
-queue max-size-bytes=100000000 max-size-time=0 ! textoverlay text=" " valign="bottom" shaded-background=false font-desc="Sans Bold 20" ! \
+videomixer name=mix sink_0::alpha=1.0 sink_1::alpha=1.0 ! \
+queue max-size-bytes=100000000 max-size-time=0 ! textoverlay text="GrassRoot Media" valign="bottom" shaded-background=false font-desc="Sans Bold 20" ! \
 queue max-size-bytes=100000000 max-size-time=0 ! ffmpegcolorspace ! \
 queue max-size-bytes=100000000 max-size-time=0 ! ximagesink sync=false \

@@ -2,7 +2,7 @@
   
 static GstElement *pipeline;
 
-static gboolean
+static gboolean 
 do_switch (GstElement * pipeline)
 {
   int other_channel;
@@ -20,9 +20,6 @@ do_switch (GstElement * pipeline)
   gint64 v_runningtime, a_runningtime;
   gint64 starttime, stoptime;
 
-  other_channel  = active_channel ? 0 : 1;
-  active_channel = active_channel ? 0 : 1;
-
   GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "foo");
 
 
@@ -38,7 +35,7 @@ do_switch (GstElement * pipeline)
   }
 
   /* get the named pad */
-  name = g_strdup_printf ("sink%d", active_channel);
+//  name = g_strdup_printf ("sink%d", active_channel);
   othername = g_strdup_printf ("sink%d", other_channel);
  
   pad = gst_element_get_static_pad (select, name);
@@ -103,9 +100,9 @@ cb_new_source_pad (GstElement *element,
   /* What kind of pad? */
   padCaps = gst_pad_get_caps(pad);
   if ( g_strrstr(gst_caps_to_string(padCaps),"video") ) {
-     link_new_pad (element, pad, "vq1", "vdepay1", "vdec1", "tol1", "selector", v_channel++, 'v');
+//     link_new_pad (element, pad, "vq1", "vdepay1", "vdec1", "tol1", "selector", v_channel++, 'v');
   } else {
-     link_new_pad (element, pad, "aq1", "adepay1", "adec1", "", "aselector", a_channel++, 'a');
+//     link_new_pad (element, pad, "aq1", "adepay1", "adec1", "", "aselector", a_channel++, 'a');
   }
 
 
@@ -120,10 +117,9 @@ int main(int argc, char *argv[]) {
   GstElement *vqout1, *vqout2, *vqout3;
   GstElement *vscale101, *vscale102;
   GstElement *vscale201, *vscale202;
-  GstElement *vrate101, *vrate201, *vrateout;
-  GstElement *vcapsfil102, *vcapsfil102, *vcapfil103;
-  GstElement *vcapsfil202, *vcapsfil202, *vcapfil203;
-  GstElement *vcapsfilout;
+  GstElement *vrate101, *vrate102, *vrate201;
+  GstElement *vcapsfil101, *vcapsfil102, *vcapsfil103, *vcapsfil104;
+  GstElement *vcapsfil201, *vcapsfil202, *vcapsfil203;
   GstElement *ffcolor1, *ffcolor2, *ffcolorout;
   GstElement *vselector;
   GstElement *vtee2;
@@ -154,9 +150,11 @@ int main(int argc, char *argv[]) {
   vscale101    = gst_element_factory_make ("videoscale",         "vscale101");
   vscale102    = gst_element_factory_make ("videoscale",         "vscale102");
   vrate101     = gst_element_factory_make ("videorate",          "vrate101");
-  vcapsfile101 = gst_element_factory_make ("capsfilter",         "vcapsfil101");
-  vcapsfile102 = gst_element_factory_make ("capsfilter",         "vcapsfil102");
-  vcapsfile103 = gst_element_factory_make ("capsfilter",         "vcapsfil103");
+  vrate102     = gst_element_factory_make ("videorate",          "vrate102");
+  vcapsfil101  = gst_element_factory_make ("capsfilter",         "vcapsfil101");
+  vcapsfil102  = gst_element_factory_make ("capsfilter",         "vcapsfil102");
+  vcapsfil103  = gst_element_factory_make ("capsfilter",         "vcapsfil103");
+  vcapsfil104  = gst_element_factory_make ("capsfilter",         "vcapsfil104");
   ffcolor1     = gst_element_factory_make ("ffmpegcolorspace",   "ffcolor1");
 
   vsource2      = gst_element_factory_make ("videotestsrc",       "vsource2");
@@ -170,9 +168,9 @@ int main(int argc, char *argv[]) {
   vscale201    = gst_element_factory_make ("videoscale",         "vscale201");
   vscale202    = gst_element_factory_make ("videoscale",         "vscale202");
   vrate201     = gst_element_factory_make ("videorate",          "vrate201");
-  vcapsfile201 = gst_element_factory_make ("capsfilter",         "vcapsfil201");
-  vcapsfile202 = gst_element_factory_make ("capsfilter",         "vcapsfil202");
-  vcapsfile203 = gst_element_factory_make ("capsfilter",         "vcapsfil203");
+  vcapsfil201  = gst_element_factory_make ("capsfilter",         "vcapsfil201");
+  vcapsfil202  = gst_element_factory_make ("capsfilter",         "vcapsfil202");
+  vcapsfil203  = gst_element_factory_make ("capsfilter",         "vcapsfil203");
   ffcolor2     = gst_element_factory_make ("ffmpegcolorspace",   "ffcolor2");
   vtee2        = gst_element_factory_make ("tee",                "vtee2");
 
@@ -180,8 +178,6 @@ int main(int argc, char *argv[]) {
   vqout1       = gst_element_factory_make ("queue",              "vqout1");
   vqout2       = gst_element_factory_make ("queue",              "vqout2");
   vqout3       = gst_element_factory_make ("queue",              "vqout3");
-  vrateout     = gst_element_factory_make ("videorate",          "vrateout");
-  vcapsfileout = gst_element_factory_make ("capsfilter",         "vcapsfilout");
   ffcolorout   = gst_element_factory_make ("ffmpegcolorspace",   "ffcolorout");
   vbox         = gst_element_factory_make ("videobox",           "vbox");
   vmix         = gst_element_factory_make ("videomixer",         "vmix");
@@ -194,42 +190,72 @@ int main(int argc, char *argv[]) {
   pipeline = gst_pipeline_new ("demo-pipeline");
    
   if (  
-     source1 || source2 || 
-     vq101 || vq102 || vq103 || vq104 || vq105 || vq106 || vq107 ||
-     vq201 || vq202 || vq203 || vq204 || vq205 || vq206 || vq207 ||
-     vqout1 || vqout2 || vqout3 ||
-     vscale101 || vscale102 ||
-     vscale201 || vscale202 ||
-     vrate101 || vrate201 || vrateout ||
-     ffcolor1 || ffcolor2 || ffcolorout ||
-     vselector || vtee2 || vbox || vmix || vtextover ||
-     vcapsfil101 || vcapsfil102 || vcapsfil103 || 
-     vcapsfil201 || vcapsfil202 || vcapsfil203 || 
-     vcapsfilout ||
-     imagesink ||
-      ) {
+     !vsource1 || !vsource2 || 
+     !vq101 || !vq102 || !vq103 || !vq104 || !vq105 || !vq106 || !vq107 ||
+     !vq201 || !vq202 || !vq203 || !vq204 || !vq205 || !vq206 || !vq207 ||
+     !vqout1 || !vqout2 || !vqout3 ||
+     !vscale101 || !vscale102 ||
+     !vscale201 || !vscale202 ||
+     !vrate101 || !vrate102 || !vrate201 ||
+     !ffcolor1 || !ffcolor2 || !ffcolorout ||
+     !vselector || !vtee2 || !vbox || !vmix || !vtextover ||
+     !vcapsfil101 || !vcapsfil102 || !vcapsfil103 || !vcapsfil104 ||
+     !vcapsfil201 || !vcapsfil202 || !vcapsfil203 ||
+     !imagesink ) {
     g_printerr ("Not all elements could be created.\n");
     return -1;
   }
   
   /* Build the pipeline */
 
-  gst_bin_add (GST_BIN (pipeline), source);
+  gst_bin_add_many (GST_BIN (pipeline), vsource1, vq101, vscale101, vcapsfil101,
+                    vq102, ffcolor1, vq103, vrate101, vcapsfil102, vq104, vq105,
+                    vscale102, vcapsfil103, vq106, vrate102, vcapsfil104, vq107,
+                    vqout1, vtextover, vqout2, ffcolorout, vqout3, imagesink, NULL);
 
-
-//  if (gst_element_link_many (selector, tolo, identity, voq, NULL) != TRUE) {
-//  g_printerr ("Video output pipe could not be linked.\n");
-//    gst_object_unref (pipeline);
-//    return -1;
-//  }
+  if (gst_element_link_many (vsource1, vq101, vscale101, vcapsfil101,NULL) != TRUE ) {
+     g_printerr ("Video output pipeA could not be linked.\n");
+     gst_object_unref (pipeline);
+     return -1;
+  }
+  if (gst_element_link_many ( vq102, ffcolor1, vq103, vrate101, vcapsfil102, vq104, vq105, NULL) != TRUE ) {
+     g_printerr ("Video output pipeB could not be linked.\n");
+     gst_object_unref (pipeline);
+     return -1;
+  }
+  if (gst_element_link_many ( vscale102, vcapsfil103, vq106, vrate102, vcapsfil104, vq107, NULL) != TRUE ) {
+     g_printerr ("Video output pipeC could not be linked.\n");
+     gst_object_unref (pipeline);
+     return -1;
+  }
+  if (gst_element_link_many ( vqout1, vtextover, vqout2, ffcolorout, vqout3, imagesink, NULL) != TRUE )  {
+     g_printerr ("Video output pipeD could not be linked.\n");
+     gst_object_unref (pipeline);
+     return -1;
+  }
 
   /* Modify the source's properties */
 
-  g_object_set (vq1, "max-size-bytes", 1000000000, NULL);
+  g_object_set (vq101, "max-size-bytes", 1000000000, NULL);
+  g_object_set (vq102, "max-size-bytes", 1000000000, NULL);
+  g_object_set (vq103, "max-size-bytes", 1000000000, NULL);
+  g_object_set (vq104, "max-size-bytes", 1000000000, NULL);
+  g_object_set (vq105, "max-size-bytes", 1000000000, NULL);
+  g_object_set (vq106, "max-size-bytes", 1000000000, NULL);
+  g_object_set (vq107, "max-size-bytes", 1000000000, NULL);
+  g_object_set (vq201, "max-size-bytes", 1000000000, NULL);
+  g_object_set (vq202, "max-size-bytes", 1000000000, NULL);
+  g_object_set (vq203, "max-size-bytes", 1000000000, NULL);
+  g_object_set (vq204, "max-size-bytes", 1000000000, NULL);
+  g_object_set (vq205, "max-size-bytes", 1000000000, NULL);
+  g_object_set (vq206, "max-size-bytes", 1000000000, NULL);
+  g_object_set (vq207, "max-size-bytes", 1000000000, NULL);
+  g_object_set (vqout1, "max-size-bytes", 1000000000, NULL);
+  g_object_set (vqout2, "max-size-bytes", 1000000000, NULL);
+  g_object_set (vqout3, "max-size-bytes", 1000000000, NULL);
 
-  /* listen for newly created pads */
-  g_signal_connect (source, "pad-added", G_CALLBACK (cb_new_source_pad), NULL);
-
+//  /* listen for newly created pads */
+//  g_signal_connect (source, "pad-added", G_CALLBACK (cb_new_source_pad), NULL);
 
   /* Start playing */
   ret = gst_element_set_state (pipeline, GST_STATE_PLAYING);

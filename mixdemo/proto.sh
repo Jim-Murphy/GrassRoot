@@ -22,7 +22,7 @@ queue max-size-bytes=100000000 max-size-time=0 ! mix. \
 \
 vch2tap. ! \
 queue max-size-bytes=100000000 max-size-time=0 ! videoscale ! video/x-raw-yuv,width=320,height=180 ! \
-queue max-size-bytes=100000000 max-size-time=0 ! videobox border-alpha=0 fill=blue left=-320 top=0 ! \
+queue max-size-bytes=100000000 max-size-time=0 ! videobox border-alpha=0 left=-320 top=0 ! \
 queue max-size-bytes=100000000 max-size-time=0 ! mix. \
 \
 vch1. ! vsel. \

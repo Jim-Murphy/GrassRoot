@@ -114,19 +114,23 @@ cb_new_source_pad (GstElement *element,
 
 int main(int argc, char *argv[]) {
 
-  GstElement *source1, *source2; 
+  GstElement *vsource1, *vsource2; 
   GstElement *vq101, *vq102, *vq103, *vq104, *vq105, *vq106, *vq107;
   GstElement *vq201, *vq202, *vq203, *vq204, *vq205, *vq206, *vq207;
   GstElement *vqout1, *vqout2, *vqout3;
   GstElement *vscale101, *vscale102;
   GstElement *vscale201, *vscale202;
   GstElement *vrate101, *vrate201, *vrateout;
+  GstElement *vcapsfil102, *vcapsfil102, *vcapfil103;
+  GstElement *vcapsfil202, *vcapsfil202, *vcapfil203;
+  GstElement *vcapsfilout;
   GstElement *ffcolor1, *ffcolor2, *ffcolorout;
   GstElement *vselector;
   GstElement *vtee2;
   GstElement *vbox;
   GstElement *vmix;
   GstElement *vtextover;
+  GstElement *imagesink;
 
 
   GstBus *bus;
@@ -139,7 +143,7 @@ int main(int argc, char *argv[]) {
    
   /* Create the elements */
 
-  source1      = gst_element_factory_make ("videotestsrc",       "source1");
+  vsource1     = gst_element_factory_make ("videotestsrc",       "vsource1");
   vq101        = gst_element_factory_make ("queue",              "vq101");
   vq102        = gst_element_factory_make ("queue",              "vq102");
   vq103        = gst_element_factory_make ("queue",              "vq103");
@@ -147,8 +151,15 @@ int main(int argc, char *argv[]) {
   vq105        = gst_element_factory_make ("queue",              "vq105");
   vq106        = gst_element_factory_make ("queue",              "vq106");
   vq107        = gst_element_factory_make ("queue",              "vq107");
+  vscale101    = gst_element_factory_make ("videoscale",         "vscale101");
+  vscale102    = gst_element_factory_make ("videoscale",         "vscale102");
+  vrate101     = gst_element_factory_make ("videorate",          "vrate101");
+  vcapsfile101 = gst_element_factory_make ("capsfilter",         "vcapsfil101");
+  vcapsfile102 = gst_element_factory_make ("capsfilter",         "vcapsfil102");
+  vcapsfile103 = gst_element_factory_make ("capsfilter",         "vcapsfil103");
+  ffcolor1     = gst_element_factory_make ("ffmpegcolorspace",   "ffcolor1");
 
-  source2      = gst_element_factory_make ("videotestsrc",       "source2");
+  vsource2      = gst_element_factory_make ("videotestsrc",       "vsource2");
   vq201        = gst_element_factory_make ("queue",              "vq201");
   vq202        = gst_element_factory_make ("queue",              "vq202");
   vq203        = gst_element_factory_make ("queue",              "vq203");
@@ -156,29 +167,27 @@ int main(int argc, char *argv[]) {
   vq205        = gst_element_factory_make ("queue",              "vq205");
   vq206        = gst_element_factory_make ("queue",              "vq206");
   vq207        = gst_element_factory_make ("queue",              "vq207");
+  vscale201    = gst_element_factory_make ("videoscale",         "vscale201");
+  vscale202    = gst_element_factory_make ("videoscale",         "vscale202");
+  vrate201     = gst_element_factory_make ("videorate",          "vrate201");
+  vcapsfile201 = gst_element_factory_make ("capsfilter",         "vcapsfil201");
+  vcapsfile202 = gst_element_factory_make ("capsfilter",         "vcapsfil202");
+  vcapsfile203 = gst_element_factory_make ("capsfilter",         "vcapsfil203");
+  ffcolor2     = gst_element_factory_make ("ffmpegcolorspace",   "ffcolor2");
+  vtee2        = gst_element_factory_make ("tee",                "vtee2");
 
+  vselector    = gst_element_factory_make ("input-selector",     "vselector");
   vqout1       = gst_element_factory_make ("queue",              "vqout1");
   vqout2       = gst_element_factory_make ("queue",              "vqout2");
   vqout3       = gst_element_factory_make ("queue",              "vqout3");
-
-  vscale101    = gst_element_factory_make ("videoscale",         "vscale101");
-  vscale102    = gst_element_factory_make ("videoscale",         "vscale102");
-  vscale201    = gst_element_factory_make ("videoscale",         "vscale201");
-  vscale202    = gst_element_factory_make ("videoscale",         "vscale202");
-
-  vrate101     = gst_element_factory_make ("videorate",          "vrate101");
-  vrate201     = gst_element_factory_make ("videorate",          "vrate201");
   vrateout     = gst_element_factory_make ("videorate",          "vrateout");
-
-  ffcolor1     = gst_element_factory_make ("ffmpegcolorspace",   "ffcolor1");
-  ffcolor2     = gst_element_factory_make ("ffmpegcolorspace",   "ffcolor2");
+  vcapsfileout = gst_element_factory_make ("capsfilter",         "vcapsfilout");
   ffcolorout   = gst_element_factory_make ("ffmpegcolorspace",   "ffcolorout");
-
-  vselector    = gst_element_factory_make ("input-selector",     "vselector");
-  vtee2        = gst_element_factory_make ("tee",                "vtee2");
   vbox         = gst_element_factory_make ("videobox",           "vbox");
   vmix         = gst_element_factory_make ("videomixer",         "vmix");
   vtextover    = gst_element_factory_make ("textoverlay",        "vtextover");
+  imagesink    = gst_element_factory_make ("ximagesink",         "imagesink");
+
 
   /* Create the empty pipeline */
 
@@ -194,6 +203,10 @@ int main(int argc, char *argv[]) {
      vrate101 || vrate201 || vrateout ||
      ffcolor1 || ffcolor2 || ffcolorout ||
      vselector || vtee2 || vbox || vmix || vtextover ||
+     vcapsfil101 || vcapsfil102 || vcapsfil103 || 
+     vcapsfil201 || vcapsfil202 || vcapsfil203 || 
+     vcapsfilout ||
+     imagesink ||
       ) {
     g_printerr ("Not all elements could be created.\n");
     return -1;

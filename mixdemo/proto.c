@@ -213,22 +213,10 @@ int main(int argc, char *argv[]) {
                     vscale102, vcapsfil103, vq106, vrate102, vcapsfil104, vq107,
                     vqout1, vtextover, vqout2, ffcolorout, vqout3, imagesink, NULL);
 
-  if (gst_element_link_many (vsource1, vq101, vscale101, vcapsfil101,NULL) != TRUE ) {
-     g_printerr ("Video output pipeA could not be linked.\n");
-     gst_object_unref (pipeline);
-     return -1;
-  }
-  if (gst_element_link_many ( vq102, ffcolor1, vq103, vrate101, vcapsfil102, vq104, vq105, NULL) != TRUE ) {
-     g_printerr ("Video output pipeB could not be linked.\n");
-     gst_object_unref (pipeline);
-     return -1;
-  }
-  if (gst_element_link_many ( vscale102, vcapsfil103, vq106, vrate102, vcapsfil104, vq107, NULL) != TRUE ) {
-     g_printerr ("Video output pipeC could not be linked.\n");
-     gst_object_unref (pipeline);
-     return -1;
-  }
-  if (gst_element_link_many ( vqout1, vtextover, vqout2, ffcolorout, vqout3, imagesink, NULL) != TRUE )  {
+  if (gst_element_link_many (vsource1, vq101, vscale101, vcapsfil101,
+                             vq102, ffcolor1, vq103, vrate101, vcapsfil102, vq104, vq105,
+                             vscale102, vcapsfil103, vq106, vrate102, vcapsfil104, vq107,
+                             vqout1, vtextover, vqout2, ffcolorout, vqout3, imagesink, NULL) != TRUE )  {
      g_printerr ("Video output pipeD could not be linked.\n");
      gst_object_unref (pipeline);
      return -1;

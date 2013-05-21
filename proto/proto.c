@@ -94,6 +94,7 @@ cb_new_source_pad (GstElement *element,
 	    GstPad     *pad,
 	    gpointer    data)
 {
+  g_print("Input selector pad added\n");
   GstCaps *padCaps;
   const GstStructure *capStr;
  
@@ -127,6 +128,11 @@ int main(int argc, char *argv[]) {
   GstElement *vmix;
   GstElement *vtextover;
   GstElement *imagesink;
+
+  GstPad  *teeSrc1;
+  GstPad  *selSink1;
+  GstPad  *genSink;
+  GstPad  *genSrc;
 
   GstCaps *fullscreencaps;
   GstCaps *pipcaps;
@@ -186,7 +192,6 @@ int main(int argc, char *argv[]) {
   vtextover    = gst_element_factory_make ("textoverlay",        "vtextover");
   imagesink    = gst_element_factory_make ("ximagesink",         "imagesink");
 
-
   /* Create the empty pipeline */
 
   pipeline = gst_pipeline_new ("demo-pipeline");
@@ -211,24 +216,19 @@ int main(int argc, char *argv[]) {
   /* Build the pipeline */
 
   gst_bin_add_many (GST_BIN (pipeline), vsource1, vq101, vscale101, vcapsfil101,
-                    vq102, ffcolor1, vq103, vrate101, vcapsfil102, vq104, vmix, vq105,
+                    vq102, ffcolor1, vq103, vrate101, vcapsfil102, vq104, vselector, vq105,
                     vscale102, vcapsfil103, vq106, vrate102, vcapsfil104, vq107,
-                    vqout1, vtextover, vqout2, ffcolorout, vqout3, imagesink, NULL);
+                    vqout1, vtextover, vqout2, vmix, ffcolorout, vqout3, imagesink, NULL);
 
   gst_bin_add_many (GST_BIN (pipeline), vsource2, vq201, vscale201, vcapsfil201, 
                     vq202, ffcolor2, vq203, vrate201, vcapsfil202, vtee2, vq204,
-                    vscale202, vcapsfil203, vq206, vbox, vq207, NULL);
-
-
-/*   Need this for later
-  vq205        = gst_element_factory_make ("queue",              "vq205");
-*/
+                    vq205, vscale202, vcapsfil203, vq206, vbox, vq207, NULL);
 
 
   if (gst_element_link_many (vsource1, vq101, vscale101, vcapsfil101,
-                             vq102, ffcolor1, vq103, vrate101, vcapsfil102, vq104, vmix, vq105,
+                             vq102, ffcolor1, vq103, vrate101, vcapsfil102, vq104, vselector, vq105,
                              vscale102, vcapsfil103, vq106, vrate102, vcapsfil104, vq107,
-                             vqout1, vtextover, vqout2, ffcolorout, vqout3, imagesink, NULL) != TRUE )  {
+                             vqout1, vtextover, vqout2, vmix, ffcolorout, vqout3, imagesink, NULL) != TRUE )  {
      g_printerr ("Video Channel 1  could not be linked.\n");
      gst_object_unref (pipeline);
      return -1;
@@ -242,6 +242,37 @@ int main(int argc, char *argv[]) {
      return -1;
   }
 
+  teeSrc1 = gst_element_get_request_pad (vtee2, "src1");
+  if (!teeSrc1) {
+     g_printerr ("Unable to get Src1 on Vtee\n");
+  }
+
+  genSink = gst_element_get_static_pad (vq205, "sink");
+  if (!genSink) {
+     g_printerr ("Unable to get Sink on Q205\n");
+  }
+
+  if (gst_pad_link (teeSrc1, genSink))  {
+     g_printerr ("Video Channel 2 could not link Tee to Q205.\n");
+     gst_object_unref (pipeline);
+     return -1;
+  }
+
+  genSrc = gst_element_get_static_pad (vq205, "src");
+  if (!genSrc) {
+     g_printerr ("Unable to get src on Q205\n");
+  }
+  selSink1 = gst_element_get_request_pad (vselector, "sink1");
+  if (!selSink1) {
+     g_printerr ("Unable to get sink1 on Selctor\n");
+  }
+
+  if (gst_pad_link (genSrc,selSink1))  {
+     g_printerr ("Video Channel 2 could not link Q205 to Selector.\n");
+     gst_object_unref (pipeline);
+     return -1;
+  }
+  
 
   /* Set up the various caps filters */
 
@@ -295,7 +326,7 @@ int main(int argc, char *argv[]) {
 
 
 //  /* listen for newly created pads */
-//  g_signal_connect (source, "pad-added", G_CALLBACK (cb_new_source_pad), NULL);
+//  g_signal_connect (vsource1, "pad-added", G_CALLBACK (cb_new_source_pad), NULL);
 
   /* Start playing */
   ret = gst_element_set_state (pipeline, GST_STATE_PLAYING);
@@ -305,6 +336,8 @@ int main(int argc, char *argv[]) {
     return -1;
   }
   
+  GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "foo");
+
   /* Wait until error or EOS */
 
   loop=g_main_loop_new (NULL, FALSE);

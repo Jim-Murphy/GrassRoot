@@ -128,6 +128,7 @@ int main(int argc, char *argv[]) {
   GstElement *vtextover;
   GstElement *imagesink;
 
+  GstCaps *filtercaps;
 
   GstBus *bus;
   GstMessage *msg;
@@ -222,7 +223,18 @@ int main(int argc, char *argv[]) {
      return -1;
   }
 
-  /* Modify the source's properties */
+  /* Set up the various caps filters */
+
+  filtercaps = gst_caps_new_simple ("video/x-raw-yuv",
+//			   "format", G_TYPE_STRING, "YUV",
+			   "width", G_TYPE_INT, 640,
+			   "height", G_TYPE_INT, 360,
+                           "framerate", GST_TYPE_FRACTION, 15, 1,
+			   NULL);
+  g_object_set (G_OBJECT (vcapsfil101), "caps", filtercaps, NULL);
+  g_object_set (G_OBJECT (vcapsfil102), "caps", filtercaps, NULL);
+  g_object_set (G_OBJECT (vcapsfil103), "caps", filtercaps, NULL);
+  gst_caps_unref (filtercaps);
 
   g_object_set (vq101, "max-size-bytes", 1000000000, NULL);
   g_object_set (vq102, "max-size-bytes", 1000000000, NULL);
@@ -241,6 +253,12 @@ int main(int argc, char *argv[]) {
   g_object_set (vqout1, "max-size-bytes", 1000000000, NULL);
   g_object_set (vqout2, "max-size-bytes", 1000000000, NULL);
   g_object_set (vqout3, "max-size-bytes", 1000000000, NULL);
+
+  g_object_set (vtextover, "text", "GrassRoot Media", NULL);
+  g_object_set (vtextover, "valign", "bottom", NULL);
+  g_object_set (vtextover, "shaded-background", FALSE, NULL);
+  g_object_set (vtextover, "font-desc", "Sans Bold 20", NULL);
+
 
 //  /* listen for newly created pads */
 //  g_signal_connect (source, "pad-added", G_CALLBACK (cb_new_source_pad), NULL);

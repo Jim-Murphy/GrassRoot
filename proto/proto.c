@@ -1,6 +1,6 @@
 #include <gst/gst.h>
   
-static int active_channel = 0;
+static int active_channel = 1;
 
 static gboolean 
 do_switch (GstElement * pipeline)
@@ -23,7 +23,7 @@ do_switch (GstElement * pipeline)
 // For now, simply assume it's 0 or 1, and other channel is 0 when active is 1, and vice versa
 
   other_channel  = active_channel;     // Channel we're about to leave
-//  active_channel = active_channel?0:1; // Channel we're switching to
+  active_channel = active_channel?0:1; // Channel we're switching to
 
   /* find the selector */
   vselect = gst_bin_get_by_name (GST_BIN (pipeline), "vselector");
@@ -63,7 +63,10 @@ do_switch (GstElement * pipeline)
 
   /* set the active pad */
 
+
   g_signal_emit_by_name (vselect, "block", &v_stoptime);
+
+  gst_element_set_state(GST_ELEMENT(pipeline), GST_STATE_PAUSED);
 
 //AUDIO  g_signal_emit_by_name (aselect, "block", &a_stoptime);
 

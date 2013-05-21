@@ -128,7 +128,8 @@ int main(int argc, char *argv[]) {
   GstElement *vtextover;
   GstElement *imagesink;
 
-  GstCaps *filtercaps;
+  GstCaps *fullscreencaps;
+  GstCaps *pipcaps;
 
   GstBus *bus;
   GstMessage *msg;
@@ -180,8 +181,8 @@ int main(int argc, char *argv[]) {
   vqout2       = gst_element_factory_make ("queue",              "vqout2");
   vqout3       = gst_element_factory_make ("queue",              "vqout3");
   ffcolorout   = gst_element_factory_make ("ffmpegcolorspace",   "ffcolorout");
-  vbox         = gst_element_factory_make ("videobox",           "vbox");
   vmix         = gst_element_factory_make ("videomixer",         "vmix");
+  vbox         = gst_element_factory_make ("videobox",           "vbox");
   vtextover    = gst_element_factory_make ("textoverlay",        "vtextover");
   imagesink    = gst_element_factory_make ("ximagesink",         "imagesink");
 
@@ -210,31 +211,60 @@ int main(int argc, char *argv[]) {
   /* Build the pipeline */
 
   gst_bin_add_many (GST_BIN (pipeline), vsource1, vq101, vscale101, vcapsfil101,
-                    vq102, ffcolor1, vq103, vrate101, vcapsfil102, vq104, vq105,
+                    vq102, ffcolor1, vq103, vrate101, vcapsfil102, vq104, vmix, vq105,
                     vscale102, vcapsfil103, vq106, vrate102, vcapsfil104, vq107,
                     vqout1, vtextover, vqout2, ffcolorout, vqout3, imagesink, NULL);
 
+  gst_bin_add_many (GST_BIN (pipeline), vsource2, vq201, vscale201, vcapsfil201, 
+                    vq202, ffcolor2, vq203, vrate201, vcapsfil202, vtee2, vq204,
+                    vscale202, vcapsfil203, vq206, vbox, vq207, NULL);
+
+
+/*   Need this for later
+  vq205        = gst_element_factory_make ("queue",              "vq205");
+*/
+
+
   if (gst_element_link_many (vsource1, vq101, vscale101, vcapsfil101,
-                             vq102, ffcolor1, vq103, vrate101, vcapsfil102, vq104, vq105,
+                             vq102, ffcolor1, vq103, vrate101, vcapsfil102, vq104, vmix, vq105,
                              vscale102, vcapsfil103, vq106, vrate102, vcapsfil104, vq107,
                              vqout1, vtextover, vqout2, ffcolorout, vqout3, imagesink, NULL) != TRUE )  {
-     g_printerr ("Video output pipeD could not be linked.\n");
+     g_printerr ("Video Channel 1  could not be linked.\n");
      gst_object_unref (pipeline);
      return -1;
   }
 
+  if (gst_element_link_many (vsource2, vq201, vscale201, vcapsfil201, 
+                         vq202, ffcolor2, vq203, vrate201, vcapsfil202, vtee2, vq204,
+                         vscale202, vcapsfil203, vq206, vbox, vq207, vmix, NULL) != TRUE ) {
+     g_printerr ("Video Channel 2  could not be linked.\n");
+     gst_object_unref (pipeline);
+     return -1;
+  }
+
+
   /* Set up the various caps filters */
 
-  filtercaps = gst_caps_new_simple ("video/x-raw-yuv",
-//			   "format", G_TYPE_STRING, "YUV",
+  fullscreencaps = gst_caps_new_simple ("video/x-raw-yuv",
 			   "width", G_TYPE_INT, 640,
 			   "height", G_TYPE_INT, 360,
                            "framerate", GST_TYPE_FRACTION, 15, 1,
 			   NULL);
-  g_object_set (G_OBJECT (vcapsfil101), "caps", filtercaps, NULL);
-  g_object_set (G_OBJECT (vcapsfil102), "caps", filtercaps, NULL);
-  g_object_set (G_OBJECT (vcapsfil103), "caps", filtercaps, NULL);
-  gst_caps_unref (filtercaps);
+  g_object_set (G_OBJECT (vcapsfil101), "caps", fullscreencaps, NULL);
+  g_object_set (G_OBJECT (vcapsfil102), "caps", fullscreencaps, NULL);
+  g_object_set (G_OBJECT (vcapsfil103), "caps", fullscreencaps, NULL);
+  g_object_set (G_OBJECT (vcapsfil201), "caps", fullscreencaps, NULL);
+  g_object_set (G_OBJECT (vcapsfil202), "caps", fullscreencaps, NULL);
+
+  pipcaps = gst_caps_new_simple ("video/x-raw-yuv",
+			   "width", G_TYPE_INT, 320,
+			   "height", G_TYPE_INT, 180,
+                           "framerate", GST_TYPE_FRACTION, 15, 1,
+			   NULL);
+  g_object_set (G_OBJECT (vcapsfil203), "caps", pipcaps, NULL);
+
+  g_object_set (vsource1, "pattern", 0, NULL);
+  g_object_set (vsource2, "pattern", 18, NULL);
 
   g_object_set (vq101, "max-size-bytes", 1000000000, NULL);
   g_object_set (vq102, "max-size-bytes", 1000000000, NULL);
@@ -259,6 +289,10 @@ int main(int argc, char *argv[]) {
   g_object_set (vtextover, "shaded-background", FALSE, NULL);
   g_object_set (vtextover, "font-desc", "Sans Bold 20", NULL);
 
+  g_object_set (vbox, "left", -320, NULL);
+  g_object_set (vbox, "top", 0, NULL);
+  g_object_set (vbox, "border-alpha", 0, NULL);
+
 
 //  /* listen for newly created pads */
 //  g_signal_connect (source, "pad-added", G_CALLBACK (cb_new_source_pad), NULL);
@@ -274,7 +308,7 @@ int main(int argc, char *argv[]) {
   /* Wait until error or EOS */
 
   loop=g_main_loop_new (NULL, FALSE);
-  g_timeout_add (15000, (GSourceFunc) do_switch, pipeline);
+//  g_timeout_add (15000, (GSourceFunc) do_switch, pipeline);
   g_main_loop_run (loop);
 
   bus = gst_element_get_bus (pipeline);
@@ -309,5 +343,7 @@ int main(int argc, char *argv[]) {
   gst_object_unref (bus);
   gst_element_set_state (pipeline, GST_STATE_NULL);
   gst_object_unref (pipeline);
+  gst_caps_unref (fullscreencaps);
+  gst_caps_unref (pipcaps);
   return 0;
 }

@@ -1,4 +1,4 @@
-CPPFLAGS += -I. -I$(top_builddir)/include -I/usr/include/gstreamer-0.10 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/libxml2 -I/usr/lib/glib-2.0/include -I/usr/include/gstreamer-0.10/gst/rtsp-server/ -I/usr/lib/i386-linux-gnu/glib-2.0/include
+CPPFLAGS += -g -I. -I$(top_builddir)/include -I/usr/include/gstreamer-0.10 -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I/usr/include/libxml2 -I/usr/lib/glib-2.0/include -I/usr/include/gstreamer-0.10/gst/rtsp-server/ -I/usr/lib/i386-linux-gnu/glib-2.0/include
 
 OBJ = proto.o
 

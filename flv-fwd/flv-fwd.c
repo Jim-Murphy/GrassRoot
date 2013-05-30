@@ -84,8 +84,11 @@ do_switch (GstElement * pipeline)
      stoptime = a_runningtime;
   } 
 
-  g_signal_emit_by_name (select, "switch", pad, stoptime, starttime);
-  g_signal_emit_by_name (aselect, "switch", apad, stoptime,starttime);
+  g_signal_emit_by_name (select, "switch", pad, stoptime, -1);
+  g_signal_emit_by_name (aselect, "switch", apad, stoptime, -1);
+
+//  g_signal_emit_by_name (select, "switch", pad, stoptime, starttime);
+//  g_signal_emit_by_name (aselect, "switch", apad, stoptime,starttime);
 
   g_free (name);
 

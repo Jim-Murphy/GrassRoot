@@ -79,16 +79,16 @@ do_switch (GstElement * pipeline)
   g_object_get (G_OBJECT(apad), "running-time", &a_runningtime, NULL);
   
   if (v_runningtime < a_runningtime) {
-     stoptime = v_runningtime;
+     starttime = v_runningtime;
   } else {
-     stoptime = a_runningtime;
+     starttime = a_runningtime;
   } 
 
-  g_signal_emit_by_name (select, "switch", pad, stoptime, -1);
-  g_signal_emit_by_name (aselect, "switch", apad, stoptime, -1);
+//  g_signal_emit_by_name (select, "switch", pad, stoptime, -1);
+//  g_signal_emit_by_name (aselect, "switch", apad, stoptime, -1);
 
-//  g_signal_emit_by_name (select, "switch", pad, stoptime, starttime);
-//  g_signal_emit_by_name (aselect, "switch", apad, stoptime,starttime);
+  g_signal_emit_by_name (select, "switch", pad, stoptime, starttime);
+  g_signal_emit_by_name (aselect, "switch", apad, stoptime, starttime);
 
   g_free (name);
 

@@ -1,20 +1,21 @@
 #include <gst/gst.h>
   
-static int active_channel = 1;
+static int active_channel = 0;
 
 static gboolean 
 do_switch (GstElement * pipeline)
 {
-  int other_channel;
+  int old_channel;
+  int new_channel;
   GstElement *vselect;
   GstElement *aselect;
   GstStateChangeReturn ret;
-  gchar *name;
-  gchar *othername;
-  GstPad *pad;
-  GstPad *apad;
-  GstPad *otherPad;
-  GstPad *aotherPad;
+  gchar *new_name;
+  gchar *old_name;
+  GstPad *vnew_pad;
+  GstPad *anew_pad;
+  GstPad *vold_pad;
+  GstPad *aold_pad;
   gint64 v_stoptime, a_stoptime;
   gint64 v_starttime, a_starttime;
   gint64 v_runningtime, a_runningtime;
@@ -22,13 +23,31 @@ do_switch (GstElement * pipeline)
 
 // For now, simply assume it's 0 or 1, and other channel is 0 when active is 1, and vice versa
 
-  other_channel  = active_channel;     // Channel we're about to leave
-  active_channel = active_channel?0:1; // Channel we're switching to
+// GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "before");
+
+  old_channel    = active_channel;     // Channel we're about to leave
+  active_channel = active_channel?0:1; // Swap the channel indicator
+  new_channel    = active_channel;     // Channel we're switching to
+
+  /* get the named pad */
+  new_name = g_strdup_printf ("sink%d", new_channel);
+  old_name = g_strdup_printf ("sink%d", old_channel);
+ 
+  g_print("Switching from pad %s to pad %s\n", old_name, new_name);
 
   /* find the selector */
   vselect = gst_bin_get_by_name (GST_BIN (pipeline), "vselector");
   if (!vselect) {
      g_print("Input selector not found\n");
+  }
+  /* get the video pads */
+  vnew_pad = gst_element_get_static_pad (vselect, new_name);
+  if (!vnew_pad) {
+     g_print("Input selector pad %s not found\n", new_name);
+  }
+  vold_pad = gst_element_get_static_pad (vselect, old_name);
+  if (!vold_pad) {
+     g_print("Input selector pad %s not found\n", old_name);
   }
 
 //AUDIO  aselect = gst_bin_get_by_name (GST_BIN (pipeline), "aselector");
@@ -36,38 +55,19 @@ do_switch (GstElement * pipeline)
 //AUDIO     g_print("Audio input selector not found\n");
 //AUDIO  }
 
-  /* get the named pad */
-  name = g_strdup_printf ("sink%d", active_channel);
-  othername = g_strdup_printf ("sink%d", other_channel);
- 
-  g_print("Switching from pad %s to pad %s\n", othername, name);
-
-  pad = gst_element_get_static_pad (vselect, name);
-  if (!pad) {
-     g_print("Input selector pad %s not found\n", name);
-  }
-  otherPad = gst_element_get_static_pad (vselect, othername);
-  if (!otherPad) {
-     g_print("Input selector pad %s not found\n", othername);
-  }
-
-//AUDIO  apad = gst_element_get_static_pad (aselect, name);
-//AUDIO  aotherPad = gst_element_get_static_pad (aselect, othername);
-
-//AUDIO  if (!apad) {
-//AUDIO     g_print("Audio Input selector pad %s not found\n", name);
+//AUDIO  /* get the audio pads */
+//AUDIO  anew_pad = gst_element_get_static_pad (aselect, new_name);
+//AUDIO  if (!anew_pad) {
+//AUDIO     g_print("Input selector pad %s not found\n", new_name);
 //AUDIO  }
-//AUDIO  if (!aotherPad) {
-//AUDIO     g_print("Input selector pad %s not found\n", othername);
+//AUDIO  aold_pad = gst_element_get_static_pad (aselect, old_name);
+//AUDIO  if (!aold_pad) {
+//AUDIO     g_print("Input selector pad %s not found\n", old_name);
 //AUDIO  }
 
-  /* set the active pad */
-
+  /* First, send the BLOCK signal to each selector */
 
   g_signal_emit_by_name (vselect, "block", &v_stoptime);
-
-  gst_element_set_state(GST_ELEMENT(pipeline), GST_STATE_PAUSED);
-
 //AUDIO  g_signal_emit_by_name (aselect, "block", &a_stoptime);
 
 //AUDIO  if (v_stoptime > a_stoptime) {
@@ -76,26 +76,28 @@ do_switch (GstElement * pipeline)
 //AUDIO     stoptime = a_stoptime;
 //AUDIO  }
 
-//STOPTIME  Need to figure this out stil
+  g_object_get (G_OBJECT (vnew_pad), "running-time", &v_runningtime, NULL);
 
-//STOPTIME  gst_pad_get_property (otherPad, "running-time", &v_runningtime);
-//STOPTIME  gst_pad_get_property (aotherPad, (const char *)"running-time", &a_runningtime);
+//STOPTIME  gst_pad_get_property (anew_pad, (const char *)"running-time", &a_runningtime);
   
-//STOPTIME  if (v_runningtime > a_runningtime) {
-//STOPTIME     stoptime = a_runningtime;
+//STOPTIME  if (v_runningtime < a_runningtime) {
+               starttime = v_runningtime;
 //STOPTIME  } else {
-//STOPTIME     stoptime = v_runningtime;
+//STOPTIME     starttime = a_runningtime;
 //STOPTIME  } 
 
-  g_print("Emitting Switch signal stoptime %ld\n", (long int)stoptime);
+  g_print("Stopped at %"G_GINT64_FORMAT"\n", stoptime);
+  g_print("Starting at %"G_GINT64_FORMAT"\n", starttime);
 
-  g_signal_emit_by_name (vselect, "switch", pad, v_stoptime, -1);
-
-//AUDIO  g_signal_emit_by_name (aselect, "switch", apad, stoptime,-1);
+  g_signal_emit_by_name (vselect, "switch", vnew_pad, stoptime, (gint64) -1 );
+//AUDIO  g_signal_emit_by_name (aselect, "switch", anew_pad, stoptime, starttime);
 
 //  gst_element_set_state(GST_ELEMENT(pipeline), GST_STATE_PLAYING);
 
-  g_free (name);
+//  GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "after");
+
+  g_free (new_name);
+  g_free (old_name);
 
   return TRUE;
 }
@@ -353,7 +355,7 @@ int main(int argc, char *argv[]) {
     return -1;
   }
   
-  GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "foo");
+  GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "start");
 
   /* Wait until error or EOS */
 
@@ -362,7 +364,7 @@ int main(int argc, char *argv[]) {
   g_main_loop_run (loop);
 
   bus = gst_element_get_bus (pipeline);
-  msg = gst_bus_timed_pop_filtered (bus, GST_CLOCK_TIME_NONE, GST_MESSAGE_ERROR | GST_MESSAGE_EOS);
+  msg = gst_bus_timed_pop_filtered (bus, GST_CLOCK_TIME_NONE, GST_MESSAGE_ERROR | GST_MESSAGE_EOS );
   
   /* Parse message */
   if (msg != NULL) {

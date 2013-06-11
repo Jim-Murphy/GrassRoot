@@ -99,7 +99,7 @@ int main(int argc, char *argv[]) {
   vencq       = gst_element_factory_make ("queue",         "vencq");
   vmuxq       = gst_element_factory_make ("queue",    "vmuxq");
   mux         = gst_element_factory_make ("flvmux",        "mux");
-//  filesink    = gst_element_factory_make ("filesink",      "filesink");
+  filesink    = gst_element_factory_make ("filesink",      "filesink");
 //  rtmpsink    = gst_element_factory_make ("rtmpsink",      "rtmpsink");
   sink        = gst_element_factory_make ("autovideosink", "sink");
 
@@ -111,8 +111,8 @@ int main(int argc, char *argv[]) {
       !vdec1 || !vdec2 || 
       !vq1 || !vq2 || !voq || !tol1 || !tol2 || !tolo || !vtee ||
       !vconv || !venc || !vencq || !vmuxq || !mux ||
-      !sink
-//      !filesink  
+//      !sink
+      !filesink  
 //      !rtmpsink 
       ) {
     g_printerr ("Not all elements could be created.\n");
@@ -139,13 +139,13 @@ int main(int argc, char *argv[]) {
   gst_bin_add (GST_BIN (pipeline), vencq);
   gst_bin_add (GST_BIN (pipeline), vmuxq);
   gst_bin_add (GST_BIN (pipeline), mux);
-//  gst_bin_add (GST_BIN (pipeline), filesink);
+  gst_bin_add (GST_BIN (pipeline), filesink);
 //  gst_bin_add (GST_BIN (pipeline), rtmpsink);
   gst_bin_add (GST_BIN (pipeline), vrate);
 
 /*****   VIDEO 1 INPUT SIDE  ***/
 
-  if (gst_element_link_many (source, vq1, vdec1, tol1, selector, NULL) != TRUE) {
+  if (gst_element_link_many (source, vq1, vdec1, selector, NULL) != TRUE) {
     g_printerr ("Video input 1  pipe could not be linked.\n");
     gst_object_unref (pipeline);
     return -1;
@@ -153,7 +153,7 @@ int main(int argc, char *argv[]) {
 
 /*****   VIDEO 2 INPUT SIDE  ***/
 
-  if (gst_element_link_many (source2, vq2, vdec2, tol2, selector, NULL) != TRUE) {
+  if (gst_element_link_many (source2, vq2, vdec2, selector, NULL) != TRUE) {
     g_printerr ("Video input 2  pipe could not be linked.\n");
     gst_object_unref (pipeline);
     return -1;
@@ -161,8 +161,8 @@ int main(int argc, char *argv[]) {
 
 /*****   VIDEO OUTPUT SIDE ****/
 
-  if (gst_element_link_many (selector, tolo, voq, vencq, sink, NULL) != TRUE) {
-//JSM  if (gst_element_link_many (selector, vencq, NULL) != TRUE) {
+//JSM  if (gst_element_link_many (selector, tolo, voq, vencq, sink, NULL) != TRUE) {
+  if (gst_element_link_many (selector, vencq, NULL) != TRUE) {
     g_printerr ("Video output pipe could not be linked.\n");
     gst_object_unref (pipeline);
     return -1;
@@ -171,17 +171,21 @@ int main(int argc, char *argv[]) {
 /*** MULTIPLEXED FLV SIDE ***/
   
 
-//JSM  if (gst_element_link_many (vencq, vconv, venc,  voq, filesink, NULL) != TRUE) {
-//JSM    g_printerr ("FLV video mux pipe could not be linked.\n");
-//JSM    gst_object_unref (pipeline);
-//JSM    return -1;
-//JSM  }
+  if (gst_element_link_many (vencq, vconv, venc, vmuxq, mux, voq, filesink, NULL) != TRUE) {
+    g_printerr ("FLV video mux pipe could not be linked.\n");
+    gst_object_unref (pipeline);
+    return -1;
+  }
 
 
   /* Modify the source's properties */
 
   g_object_set (source, "location", "http://66.184.211.231/mjpg/video.mjpg", NULL);
   g_object_set (source2, "location", "http://128.153.6.47/mjpg/video.mjpg", NULL);
+  g_object_set (source, "do-timestamp", TRUE, NULL);
+  g_object_set (source2, "do-timestamp", TRUE, NULL);
+  g_object_set (source, "is-live", TRUE, NULL);
+  g_object_set (source2, "is-live", TRUE, NULL);
 
   g_object_set (selector, "sync-streams", TRUE, NULL);
 
@@ -213,7 +217,7 @@ int main(int argc, char *argv[]) {
   g_object_set (vencq, "max-size-bytes", 1000000000, NULL);
   g_object_set (voq,   "max-size-bytes", 1000000000, NULL);
 
-//  g_object_set (filesink,   "location", "stuff.flv", NULL);
+  g_object_set (filesink,   "location", "stuff.flv", NULL);
 
 
   /* Start playing */

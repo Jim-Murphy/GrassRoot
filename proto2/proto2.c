@@ -99,8 +99,8 @@ int main(int argc, char *argv[]) {
   vencq       = gst_element_factory_make ("queue",         "vencq");
   vmuxq       = gst_element_factory_make ("queue",    "vmuxq");
   mux         = gst_element_factory_make ("flvmux",        "mux");
-  filesink    = gst_element_factory_make ("filesink",      "filesink");
-//  rtmpsink    = gst_element_factory_make ("rtmpsink",      "rtmpsink");
+//  filesink    = gst_element_factory_make ("filesink",      "filesink");
+  rtmpsink    = gst_element_factory_make ("rtmpsink",      "rtmpsink");
 //  sink        = gst_element_factory_make ("autovideosink", "sink");
 
 
@@ -113,8 +113,8 @@ int main(int argc, char *argv[]) {
       !vq1 || !vq2 || !voq || !tol1 || !tol2 || !tolo || !vtee ||
       !vconv || !venc || !vencq || !vmuxq || !mux ||
 //      !sink
-      !filesink  
-//      !rtmpsink 
+//      !filesink  
+      !rtmpsink 
       ) {
     g_printerr ("Not all elements could be created.\n");
     return -1;
@@ -139,8 +139,8 @@ int main(int argc, char *argv[]) {
   gst_bin_add (GST_BIN (pipeline), vencq);
   gst_bin_add (GST_BIN (pipeline), vmuxq);
   gst_bin_add (GST_BIN (pipeline), mux);
-  gst_bin_add (GST_BIN (pipeline), filesink);
-//  gst_bin_add (GST_BIN (pipeline), rtmpsink);
+//  gst_bin_add (GST_BIN (pipeline), filesink);
+  gst_bin_add (GST_BIN (pipeline), rtmpsink);
 //  gst_bin_add (GST_BIN (pipeline), sink);
   gst_bin_add (GST_BIN (pipeline), vrate);
 
@@ -162,7 +162,7 @@ int main(int argc, char *argv[]) {
 
 /*****   VIDEO OUTPUT SIDE ****/
 
-  if (gst_element_link_many (selector, vencq, venc, vmuxq, mux, voq, filesink, NULL) != TRUE) {
+  if (gst_element_link_many (selector, vencq, venc, vmuxq, mux, voq, rtmpsink, NULL) != TRUE) {
     g_printerr ("Video output pipe could not be linked.\n");
     gst_object_unref (pipeline);
     return -1;
@@ -181,9 +181,9 @@ int main(int argc, char *argv[]) {
 
   g_object_set (selector, "sync-streams", TRUE, NULL);
 
-//  g_object_set (rtmpsink, "location",
-//  "rtmp://1.7669465.fme.ustream.tv/ustreamVideo/7669465/dX3r3M2m3mAfLwfA7hCa9YQXc3FntQum flashver=FME/2.5 (compatible; FMSc 1.0)",NULL);
-//  g_object_set (rtmpsink, "sync", FALSE, NULL);
+  g_object_set (rtmpsink, "location",
+  "rtmp://1.7669465.fme.ustream.tv/ustreamVideo/7669465/dX3r3M2m3mAfLwfA7hCa9YQXc3FntQum flashver=FME/2.5 (compatible; FMSc 1.0)",NULL);
+  g_object_set (rtmpsink, "sync", FALSE, NULL);
 
   g_object_set (tol1, "halign","left", NULL);
   g_object_set (tol1, "valign","top", NULL);
@@ -206,7 +206,7 @@ int main(int argc, char *argv[]) {
   g_object_set (vencq, "max-size-bytes", 1000000000, NULL);
   g_object_set (voq,   "max-size-bytes", 1000000000, NULL);
 
-  g_object_set (filesink,   "location", "stuff.flv", NULL);
+//  g_object_set (filesink,   "location", "stuff.flv", NULL);
 
 
   /* Start playing */

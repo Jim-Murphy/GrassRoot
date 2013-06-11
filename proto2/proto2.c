@@ -2,8 +2,6 @@
   
 static GstElement *pipeline;
 
-static int v_channel = 0;
-
 static int active_channel = 0;
 
 static gboolean
@@ -21,8 +19,13 @@ do_switch (GstElement * pipeline)
   gint64 v_runningtime;
   gint64 starttime, stoptime;
 
-  other_channel  = active_channel ? 0 : 1;
-  active_channel = active_channel ? 0 : 1;
+  other_channel  = active_channel;
+
+  if (active_channel == 2) {
+     active_channel = 0;
+  } else {
+     active_channel++;
+  }
 
   GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "foo");
 
@@ -64,12 +67,12 @@ do_switch (GstElement * pipeline)
 
 
 int main(int argc, char *argv[]) {
-  GstElement *source, *source2, *sink, *selector, *aselector, *asink; 
-  GstElement *vdec1, *vdec2, *vdepay1, *vdepay2,  *adec1, *adec2, *adepay1, *adepay2;  
-  GstElement *vq1, *vq2, *aq1, *aq2, *voq, *aoq;
-  GstElement *tol1, *tol2, *tolo, *aresample, *vrate;
-  GstElement *vtee, *atee;
-  GstElement *aenc, *aconv, *vconv, *venc, *aencq, *vencq, *vmuxq, *amuxq, *mux, *rtmpq;
+  GstElement *source, *source2, *source3, *sink, *selector; 
+  GstElement *vdec1, *vdec2, *vdec3;
+  GstElement *vq1, *vq2, *vq3, *voq;
+  GstElement *tol1, *tol2, *tol3, *tolo;
+  GstElement *vtee;
+  GstElement *vconv, *venc, *vencq, *vmuxq, *mux, *rtmpq;
   GstElement *filesink, *rtmpsink;
   GstBus *bus;
   GstPad *srcpad, *sinkpad, *pad, *pad0, *pad1;
@@ -83,16 +86,19 @@ int main(int argc, char *argv[]) {
   /* Create the elements */
   source      = gst_element_factory_make ("souphttpsrc",       "source");
   source2     = gst_element_factory_make ("souphttpsrc",       "source2");
+  source3     = gst_element_factory_make ("souphttpsrc",       "source3");
   selector    = gst_element_factory_make ("input-selector","selector");
   vdec1       = gst_element_factory_make ("jpegdec",       "vdec1");
   vdec2       = gst_element_factory_make ("jpegdec",       "vdec2");
+  vdec3       = gst_element_factory_make ("jpegdec",       "vdec3");
   vq1         = gst_element_factory_make ("queue",         "vq1");
   vq2         = gst_element_factory_make ("queue",         "vq2");
+  vq3         = gst_element_factory_make ("queue",         "vq3");
   voq         = gst_element_factory_make ("queue",         "voq");
   tol1        = gst_element_factory_make ("timeoverlay",   "tol1");
   tol2        = gst_element_factory_make ("timeoverlay",   "tol2");
+  tol3        = gst_element_factory_make ("timeoverlay",   "tol3");
   tolo        = gst_element_factory_make ("timeoverlay",   "tolo");
-  vrate       = gst_element_factory_make ("videorate",     "vrate");
   vtee        = gst_element_factory_make ("tee",           "vtee");
   venc        = gst_element_factory_make ("ffenc_flv",     "venc");
   vconv       = gst_element_factory_make ("ffmpegcolorspace",  "vconv");
@@ -108,9 +114,9 @@ int main(int argc, char *argv[]) {
   /* Create the empty pipeline */
   pipeline = gst_pipeline_new ("test-pipeline");
    
-  if (!pipeline || !source || !source2 || !selector || 
-      !vdec1 || !vdec2 || 
-      !vq1 || !vq2 || !voq || !tol1 || !tol2 || !tolo || !vtee ||
+  if (!pipeline || !source || !source2 || !source3 || !selector || 
+      !vdec1 || !vdec2 || !vdec3 ||
+      !vq1 || !vq2 || !vq3 || !voq || !tol1 || !tol2 || !tolo || !vtee ||
       !vconv || !venc || !vencq || !vmuxq || !mux ||
 //      !sink
 //      !filesink  
@@ -124,14 +130,18 @@ int main(int argc, char *argv[]) {
 
   gst_bin_add (GST_BIN (pipeline), source);
   gst_bin_add (GST_BIN (pipeline), source2);
+  gst_bin_add (GST_BIN (pipeline), source3);
   gst_bin_add (GST_BIN (pipeline), selector);
   gst_bin_add (GST_BIN (pipeline), vdec1);
   gst_bin_add (GST_BIN (pipeline), vdec2);
+  gst_bin_add (GST_BIN (pipeline), vdec3);
   gst_bin_add (GST_BIN (pipeline), vq1);
   gst_bin_add (GST_BIN (pipeline), vq2);
+  gst_bin_add (GST_BIN (pipeline), vq3);
   gst_bin_add (GST_BIN (pipeline), voq);
   gst_bin_add (GST_BIN (pipeline), tol1);
   gst_bin_add (GST_BIN (pipeline), tol2);
+  gst_bin_add (GST_BIN (pipeline), tol3);
   gst_bin_add (GST_BIN (pipeline), tolo);
   gst_bin_add (GST_BIN (pipeline), vtee);
   gst_bin_add (GST_BIN (pipeline), venc);
@@ -142,11 +152,10 @@ int main(int argc, char *argv[]) {
 //  gst_bin_add (GST_BIN (pipeline), filesink);
   gst_bin_add (GST_BIN (pipeline), rtmpsink);
 //  gst_bin_add (GST_BIN (pipeline), sink);
-  gst_bin_add (GST_BIN (pipeline), vrate);
 
 /*****   VIDEO 1 INPUT SIDE  ***/
 
-  if (gst_element_link_many (source, vq1, vdec1, selector, NULL) != TRUE) {
+  if (gst_element_link_many (source, vq1, vdec1, tol1, selector, NULL) != TRUE) {
     g_printerr ("Video input 1  pipe could not be linked.\n");
     gst_object_unref (pipeline);
     return -1;
@@ -154,15 +163,24 @@ int main(int argc, char *argv[]) {
 
 /*****   VIDEO 2 INPUT SIDE  ***/
 
-  if (gst_element_link_many (source2, vq2, vdec2, selector, NULL) != TRUE) {
+  if (gst_element_link_many (source2, vq2, vdec2, tol2, selector, NULL) != TRUE) {
     g_printerr ("Video input 2  pipe could not be linked.\n");
+    gst_object_unref (pipeline);
+    return -1;
+  }
+
+/*****   VIDEO 3 INPUT SIDE  ***/
+
+  if (gst_element_link_many (source3, vq3, vdec3, tol3, selector, NULL) != TRUE) {
+    g_printerr ("Video input 3  pipe could not be linked.\n");
     gst_object_unref (pipeline);
     return -1;
   }
 
 /*****   VIDEO OUTPUT SIDE ****/
 
-  if (gst_element_link_many (selector, vencq, venc, vmuxq, mux, voq, rtmpsink, NULL) != TRUE) {
+//JSM  if (gst_element_link_many (selector, vencq, tolo, sink, NULL) != TRUE) {
+  if (gst_element_link_many (selector, tolo, vencq, venc, vmuxq, mux, voq, rtmpsink, NULL) != TRUE) {
     g_printerr ("Video output pipe could not be linked.\n");
     gst_object_unref (pipeline);
     return -1;
@@ -173,11 +191,13 @@ int main(int argc, char *argv[]) {
 
   g_object_set (source, "location", "http://66.184.211.231/mjpg/video.mjpg", NULL);
   g_object_set (source2, "location", "http://webcam1.coloradocollege.edu/mjpg/video.mjpg", NULL);
-//  g_object_set (source2, "location", "http://128.153.6.47/mjpg/video.mjpg", NULL);
+  g_object_set (source3, "location", "http://128.153.6.47/mjpg/video.mjpg", NULL);
   g_object_set (source, "do-timestamp", TRUE, NULL);
   g_object_set (source2, "do-timestamp", TRUE, NULL);
+  g_object_set (source3, "do-timestamp", TRUE, NULL);
   g_object_set (source, "is-live", TRUE, NULL);
   g_object_set (source2, "is-live", TRUE, NULL);
+  g_object_set (source3, "is-live", TRUE, NULL);
 
   g_object_set (selector, "sync-streams", TRUE, NULL);
 
@@ -194,6 +214,11 @@ int main(int argc, char *argv[]) {
   g_object_set (tol2, "valign","top", NULL);
   g_object_set (tol2, "text","Input 2:", NULL);
   g_object_set (tol2, "shaded-background",TRUE, NULL);
+
+  g_object_set (tol3, "halign","left", NULL);
+  g_object_set (tol3, "valign","top", NULL);
+  g_object_set (tol3, "text","Input 3:", NULL);
+  g_object_set (tol3, "shaded-background",TRUE, NULL);
 
   g_object_set (tolo, "halign","right", NULL);
   g_object_set (tolo, "valign","top", NULL);

@@ -101,7 +101,8 @@ int main(int argc, char *argv[]) {
   mux         = gst_element_factory_make ("flvmux",        "mux");
   filesink    = gst_element_factory_make ("filesink",      "filesink");
 //  rtmpsink    = gst_element_factory_make ("rtmpsink",      "rtmpsink");
-  sink        = gst_element_factory_make ("autovideosink", "sink");
+//  sink        = gst_element_factory_make ("autovideosink", "sink");
+
 
 
   /* Create the empty pipeline */
@@ -124,7 +125,6 @@ int main(int argc, char *argv[]) {
   gst_bin_add (GST_BIN (pipeline), source);
   gst_bin_add (GST_BIN (pipeline), source2);
   gst_bin_add (GST_BIN (pipeline), selector);
-  gst_bin_add (GST_BIN (pipeline), sink);
   gst_bin_add (GST_BIN (pipeline), vdec1);
   gst_bin_add (GST_BIN (pipeline), vdec2);
   gst_bin_add (GST_BIN (pipeline), vq1);
@@ -141,6 +141,7 @@ int main(int argc, char *argv[]) {
   gst_bin_add (GST_BIN (pipeline), mux);
   gst_bin_add (GST_BIN (pipeline), filesink);
 //  gst_bin_add (GST_BIN (pipeline), rtmpsink);
+//  gst_bin_add (GST_BIN (pipeline), sink);
   gst_bin_add (GST_BIN (pipeline), vrate);
 
 /*****   VIDEO 1 INPUT SIDE  ***/
@@ -161,18 +162,8 @@ int main(int argc, char *argv[]) {
 
 /*****   VIDEO OUTPUT SIDE ****/
 
-//JSM  if (gst_element_link_many (selector, tolo, voq, vencq, sink, NULL) != TRUE) {
-  if (gst_element_link_many (selector, vencq, NULL) != TRUE) {
+  if (gst_element_link_many (selector, vencq, venc, vmuxq, mux, voq, filesink, NULL) != TRUE) {
     g_printerr ("Video output pipe could not be linked.\n");
-    gst_object_unref (pipeline);
-    return -1;
-  }
-
-/*** MULTIPLEXED FLV SIDE ***/
-  
-
-  if (gst_element_link_many (vencq, vconv, venc, vmuxq, mux, voq, filesink, NULL) != TRUE) {
-    g_printerr ("FLV video mux pipe could not be linked.\n");
     gst_object_unref (pipeline);
     return -1;
   }
@@ -181,7 +172,8 @@ int main(int argc, char *argv[]) {
   /* Modify the source's properties */
 
   g_object_set (source, "location", "http://66.184.211.231/mjpg/video.mjpg", NULL);
-  g_object_set (source2, "location", "http://128.153.6.47/mjpg/video.mjpg", NULL);
+  g_object_set (source2, "location", "http://webcam1.coloradocollege.edu/mjpg/video.mjpg", NULL);
+//  g_object_set (source2, "location", "http://128.153.6.47/mjpg/video.mjpg", NULL);
   g_object_set (source, "do-timestamp", TRUE, NULL);
   g_object_set (source2, "do-timestamp", TRUE, NULL);
   g_object_set (source, "is-live", TRUE, NULL);
@@ -192,9 +184,6 @@ int main(int argc, char *argv[]) {
 //  g_object_set (rtmpsink, "location",
 //  "rtmp://1.7669465.fme.ustream.tv/ustreamVideo/7669465/dX3r3M2m3mAfLwfA7hCa9YQXc3FntQum flashver=FME/2.5 (compatible; FMSc 1.0)",NULL);
 //  g_object_set (rtmpsink, "sync", FALSE, NULL);
-
-  g_object_set (source, "do-timestamp", TRUE, NULL);
-  g_object_set (source2, "do-timestamp", TRUE, NULL);
 
   g_object_set (tol1, "halign","left", NULL);
   g_object_set (tol1, "valign","top", NULL);

@@ -1,8 +1,9 @@
 #include <gst/gst.h>
 
-#define SCREEN_SINK
+//#define SCREEN_SINK
 //#define FILE_SINK
-//#define RTMP_SINK  
+#define RTMP_SINK  
+//#define INCLUDE_MONITOR
 
 static GstElement *pipeline;
 
@@ -68,7 +69,7 @@ static gboolean check_cmd (GstElement * pipeline) {
    char line[80];
 
 
-//  GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "foo");
+  GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "foo");
 
    if (cmd_file = fopen("/tmp/grctl", "rt"))   //  Only jump in here if there's a command to process
    {
@@ -94,11 +95,10 @@ static gboolean check_cmd (GstElement * pipeline) {
 
 int main(int argc, char *argv[]) {
   GstElement *source, *source2, *source3, *sink, *selector; 
-  GstElement *monitor, *mtee, *mq;
+  GstElement *monitor, *mtee, *mq, *mq2;
   GstElement *vdec1, *vdec2, *vdec3;
   GstElement *vq1, *vq2, *vq3, *voq;
   GstElement *txo1, *txo2, *txo3, *tolo;
-  GstElement *vtee;
   GstElement *vconv, *venc, *vencq, *vmuxq, *mux, *rtmpq;
   GstElement *filesink, *rtmpsink;
   GstElement *monscale, *moncapsfil;
@@ -107,14 +107,6 @@ int main(int argc, char *argv[]) {
   GstMessage *msg;
   GstStateChangeReturn ret;
   GMainLoop *loop;
-  GstElement *ch1tee, *ch2tee, *ch3tee;
-  GstElement *ch1q, *ch2q, *ch3q;
-  GstElement *ch1vbox, *ch2vbox, *ch3vbox;
-  GstElement *ch1scale, ch1capsfil;
-  GstElement *ch2scale, ch2capsfil;
-  GstElement *ch3scale, ch3capsfil;
-
-  GstElement *fake1;
 
   GstCaps *pipCaps;
   GstCaps *monCaps;
@@ -138,7 +130,6 @@ int main(int argc, char *argv[]) {
   txo2        = gst_element_factory_make ("textoverlay",   "txo2");
   txo3        = gst_element_factory_make ("textoverlay",   "txo3");
   tolo        = gst_element_factory_make ("timeoverlay",   "tolo");
-  vtee        = gst_element_factory_make ("tee",           "vtee");
   venc        = gst_element_factory_make ("ffenc_flv",     "venc");
   vconv       = gst_element_factory_make ("ffmpegcolorspace",  "vconv");
   vencq       = gst_element_factory_make ("queue",         "vencq");
@@ -151,35 +142,30 @@ int main(int argc, char *argv[]) {
   rtmpsink    = gst_element_factory_make ("rtmpsink",      "rtmpsink");
 #endif
 #ifdef SCREEN_SINK
-  sink        = gst_element_factory_make ("autovideosink", "sink");
+  sink        = gst_element_factory_make ("xvimagesink", "sink");
 #endif
 
-  monitor     = gst_element_factory_make ("autovideosink", "monitor");
+#ifdef INCLUDE_MONITOR
+  monitor     = gst_element_factory_make ("xvimagesink",   "monitor");
+#else
+  monitor     = gst_element_factory_make ("fakesink",   "monitor");
+#endif
+
   mtee        = gst_element_factory_make ("tee",           "mtee");
   mq          = gst_element_factory_make ("queue",         "mq");
+  mq2         = gst_element_factory_make ("queue",         "mq2");
   monscale    = gst_element_factory_make ("videoscale",    "monscale");
   moncapsfil  = gst_element_factory_make ("capsfilter",    "moncapsfil");
-
-  fake1       = gst_element_factory_make ("fakesink",      "fake1");
-
-  ch1tee      = gst_element_factory_make ("tee",           "ch1tee");
-  ch2tee      = gst_element_factory_make ("tee",           "ch2tee");
-  ch3tee      = gst_element_factory_make ("tee",           "ch3tee");
-
-  ch1q        = gst_element_factory_make ("queue",         "ch1q");
-  ch2q        = gst_element_factory_make ("queue",         "ch2q");
-  ch3q        = gst_element_factory_make ("queue",         "ch3q");
 
   /* Create the empty pipeline */
   pipeline = gst_pipeline_new ("test-pipeline");
    
   if (!pipeline || !source || !source2 || !source3 || !selector || 
       !vdec1 || !vdec2 || !vdec3 ||
-      !vq1 || !vq2 || !vq3 || !voq || !txo1 || !txo2 || !tolo || !vtee ||
+      !vq1 || !vq2 || !vq3 || !voq || !txo1 || !txo2 || !tolo || 
       !vconv || !venc || !vencq || !vmuxq || !mux || 
-      !monitor || !mtee || !mq || !monscale || !moncapsfil ||
-      !ch1tee ||  !ch2tee || !ch3tee || !ch1q || !ch2q || !ch3q ||
-      !fake1 ||
+      !monitor || !mtee || !mq || !mq2 || !monscale || !moncapsfil ||
+
 #ifdef SCREEN_SINK
       !sink
 #endif
@@ -211,7 +197,6 @@ int main(int argc, char *argv[]) {
   gst_bin_add (GST_BIN (pipeline), txo2);
   gst_bin_add (GST_BIN (pipeline), txo3);
   gst_bin_add (GST_BIN (pipeline), tolo);
-  gst_bin_add (GST_BIN (pipeline), vtee);
   gst_bin_add (GST_BIN (pipeline), venc);
   gst_bin_add (GST_BIN (pipeline), vconv);
   gst_bin_add (GST_BIN (pipeline), vencq);
@@ -221,18 +206,9 @@ int main(int argc, char *argv[]) {
   gst_bin_add (GST_BIN (pipeline), monitor);
   gst_bin_add (GST_BIN (pipeline), mtee);
   gst_bin_add (GST_BIN (pipeline), mq);
+  gst_bin_add (GST_BIN (pipeline), mq2);
   gst_bin_add (GST_BIN (pipeline), monscale);
   gst_bin_add (GST_BIN (pipeline), moncapsfil);
-
-  gst_bin_add (GST_BIN (pipeline), ch1tee);
-  gst_bin_add (GST_BIN (pipeline), ch2tee);
-  gst_bin_add (GST_BIN (pipeline), ch3tee);
-
-  gst_bin_add (GST_BIN (pipeline), ch1q);
-  gst_bin_add (GST_BIN (pipeline), ch2q);
-  gst_bin_add (GST_BIN (pipeline), ch3q);
-
-  gst_bin_add (GST_BIN (pipeline), fake1);
 
 #ifdef FILE_SINK
   gst_bin_add (GST_BIN (pipeline), filesink);
@@ -246,7 +222,7 @@ int main(int argc, char *argv[]) {
 
 /*****   VIDEO 1 INPUT SIDE  ***/
 
-  if (gst_element_link_many (source, vq1, vdec1, txo1, ch1tee, selector, NULL) != TRUE) {
+  if (gst_element_link_many (source, vq1, vdec1, txo1, selector, NULL) != TRUE) {
     g_printerr ("Video input 1  pipe could not be linked.\n");
     gst_object_unref (pipeline);
     return -1;
@@ -254,7 +230,7 @@ int main(int argc, char *argv[]) {
 
 /*****   VIDEO 2 INPUT SIDE  ***/
 
-  if (gst_element_link_many (source2, vq2, vdec2, txo2, ch2tee, selector, NULL) != TRUE) {
+  if (gst_element_link_many (source2, vq2, vdec2, txo2, selector, NULL) != TRUE) {
     g_printerr ("Video input 2  pipe could not be linked.\n");
     gst_object_unref (pipeline);
     return -1;
@@ -262,7 +238,7 @@ int main(int argc, char *argv[]) {
 
 /*****   VIDEO 3 INPUT SIDE  ***/
 
-  if (gst_element_link_many (source3, vq3, vdec3, txo3, ch3tee, selector, NULL) != TRUE) {
+  if (gst_element_link_many (source3, vq3, vdec3, txo3, selector, NULL) != TRUE) {
     g_printerr ("Video input 3  pipe could not be linked.\n");
     gst_object_unref (pipeline);
     return -1;
@@ -286,35 +262,11 @@ int main(int argc, char *argv[]) {
 
 /*****   VIDEO MONITOR SIDE  ***/
 
-  if (gst_element_link_many (mtee, monscale, moncapsfil, mq, monitor, NULL) != TRUE) {
+  if (gst_element_link_many (mtee, mq2, monscale, moncapsfil, mq, monitor, NULL) != TRUE) {
     g_printerr ("Video monitor pipe could not be linked.\n");
     gst_object_unref (pipeline);
     return -1;
   }
-
-/*****   CH1 MONITOR  ***/
-
-  if (gst_element_link_many (ch1tee, ch1q, fake1, NULL) != TRUE) {
-    g_printerr ("Video ch1 monitor pipe could not be linked.\n");
-    gst_object_unref (pipeline);
-    return -1;
-  }
-
-/*****   CH2 MONITOR  ***/
-
-//  if (gst_element_link_many (ch2tee, ch2q, NULL) != TRUE) {
-//    g_printerr ("Video ch2 monitor pipe could not be linked.\n");
-//    gst_object_unref (pipeline);
-//    return -1;
-//  }
-
-/*****   CH3 MONITOR  ***/
-
-//  if (gst_element_link_many (ch3tee, ch3q, NULL) != TRUE) {
-//    g_printerr ("Video ch3 monitor pipe could not be linked.\n");
-//    gst_object_unref (pipeline);
-//    return -1;
-//  }
 
   /* Modify the source's properties */
 
@@ -332,14 +284,10 @@ int main(int argc, char *argv[]) {
   g_object_set (selector, "sync-streams", TRUE, NULL);
 
   monCaps = gst_caps_new_simple ("video/x-raw-yuv",
-                           "width", G_TYPE_INT, 640,
-                           "height", G_TYPE_INT, 480,
+                           "width", G_TYPE_INT, 320,
+                           "height", G_TYPE_INT, 240,
                            NULL);
 
-  pipCaps = gst_caps_new_simple ("video/x-raw-yuv",
-                           "width", G_TYPE_INT, 210,
-                           "height", G_TYPE_INT, 160,
-                           NULL);
   g_object_set (G_OBJECT (moncapsfil), "caps", monCaps, NULL);
 
 
@@ -379,11 +327,7 @@ int main(int argc, char *argv[]) {
   g_object_set (vencq, "max-size-bytes", 1000000000, NULL);
   g_object_set (voq,   "max-size-bytes", 1000000000, NULL);
   g_object_set (mq,   "max-size-bytes", 1000000000, NULL);
-  g_object_set (ch1q,   "max-size-bytes", 1000000000, NULL);
-  g_object_set (ch2q,   "max-size-bytes", 1000000000, NULL);
-  g_object_set (ch3q,   "max-size-bytes", 1000000000, NULL);
-
-
+  g_object_set (mq2,  "max-size-bytes", 1000000000, NULL);
 
   /* Start playing */
   ret = gst_element_set_state (pipeline, GST_STATE_PLAYING);

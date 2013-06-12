@@ -7,9 +7,10 @@
 static GstElement *pipeline;
 
 static int active_channel = 0;
+static int num_channels = 3; 
 
-static gboolean
-do_switch (GstElement * pipeline)
+
+static gboolean switch_channel (GstElement * pipeline, int new_channel)
 {
   int other_channel;
   GstElement *select;
@@ -17,22 +18,18 @@ do_switch (GstElement * pipeline)
   gchar *name;
   gchar *othername;
   GstPad *pad;
-  GstPad *otherPad;
   gint64 v_stoptime;
   gint64 v_starttime;
   gint64 v_runningtime;
   gint64 starttime, stoptime;
 
-  other_channel  = active_channel;
-
-  if (active_channel == 2) {
-     active_channel = 0;
-  } else {
-     active_channel++;
+  if ((new_channel > num_channels) ||
+      (new_channel < 1 )) {
+     g_print ("Illegal channel number %d\n", new_channel);
+     return TRUE;
   }
 
-  GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "foo");
-
+  active_channel = new_channel - 1;   /*  Pad numbers are Channel_N -1 */
 
   /* find the selector */
   select = gst_bin_get_by_name (GST_BIN (pipeline), "selector");
@@ -43,22 +40,15 @@ do_switch (GstElement * pipeline)
 
   /* get the named pad */
   name = g_strdup_printf ("sink%d", active_channel);
-  othername = g_strdup_printf ("sink%d", other_channel);
   pad = gst_element_get_static_pad (select, name);
-  otherPad = gst_element_get_static_pad (select, othername);
-
   if (!pad) {
      g_print("Input selector pad %s not found\n", name);
-  }
-  if (!otherPad) {
-     g_print("Input selector pad %s not found\n", othername);
   }
 
   /* set the active pad */
 
   g_signal_emit_by_name (select, "block", &v_stoptime);
   stoptime = v_stoptime;
-
   g_object_get (G_OBJECT(pad), "running-time", &v_runningtime, NULL);
   starttime = v_runningtime;
 
@@ -69,6 +59,37 @@ do_switch (GstElement * pipeline)
   return TRUE;
 }
 
+
+static gboolean check_cmd (GstElement * pipeline) {
+
+   int next_channel;
+   gboolean result;
+   FILE *cmd_file;
+   char line[80];
+
+
+   if (cmd_file = fopen("/tmp/grctl", "rt"))   //  Only jump in here if there's a command to process
+   {
+
+      if (fgets(line, 80, cmd_file) != NULL)
+      {
+	 /* get a line, up to 80 chars from cmd file.  done if NULL */
+	 sscanf (line, "%d", &next_channel);
+         // g_print("Requesting channel %d\n", next_channel); 
+      }
+
+      fclose(cmd_file);
+      remove("/tmp/grctl");
+
+      result = switch_channel (pipeline, next_channel);  
+
+   }
+
+//  GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "foo");
+
+   return TRUE;
+
+}
 
 int main(int argc, char *argv[]) {
   GstElement *source, *source2, *source3, *sink, *selector; 
@@ -280,7 +301,7 @@ int main(int argc, char *argv[]) {
   /* Wait until error or EOS */
 
   loop=g_main_loop_new (NULL, FALSE);
-  g_timeout_add (15000, (GSourceFunc) do_switch, pipeline);
+  g_timeout_add (1000, (GSourceFunc) check_cmd, pipeline);
   g_main_loop_run (loop);
 
   bus = gst_element_get_bus (pipeline);

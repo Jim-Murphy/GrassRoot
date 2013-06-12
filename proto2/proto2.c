@@ -1,8 +1,8 @@
 #include <gst/gst.h>
 
-//#define SCREEN_SINK
+#define SCREEN_SINK
 //#define FILE_SINK
-#define RTMP_SINK  
+//#define RTMP_SINK  
 
 static GstElement *pipeline;
 
@@ -68,6 +68,8 @@ static gboolean check_cmd (GstElement * pipeline) {
    char line[80];
 
 
+//  GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "foo");
+
    if (cmd_file = fopen("/tmp/grctl", "rt"))   //  Only jump in here if there's a command to process
    {
 
@@ -85,7 +87,6 @@ static gboolean check_cmd (GstElement * pipeline) {
 
    }
 
-//  GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "foo");
 
    return TRUE;
 
@@ -93,17 +94,20 @@ static gboolean check_cmd (GstElement * pipeline) {
 
 int main(int argc, char *argv[]) {
   GstElement *source, *source2, *source3, *sink, *selector; 
+  GstElement *monitor, *mtee, *mq;
   GstElement *vdec1, *vdec2, *vdec3;
   GstElement *vq1, *vq2, *vq3, *voq;
-  GstElement *tol1, *tol2, *tol3, *tolo;
+  GstElement *txo1, *txo2, *txo3, *tolo;
   GstElement *vtee;
   GstElement *vconv, *venc, *vencq, *vmuxq, *mux, *rtmpq;
   GstElement *filesink, *rtmpsink;
+  GstElement *monscale, *moncapsfil;
   GstBus *bus;
   GstPad *srcpad, *sinkpad, *pad, *pad0, *pad1;
   GstMessage *msg;
   GstStateChangeReturn ret;
   GMainLoop *loop;
+  GstCaps *monCaps;
   
   /* Initialize GStreamer */
   gst_init (&argc, &argv);
@@ -120,9 +124,9 @@ int main(int argc, char *argv[]) {
   vq2         = gst_element_factory_make ("queue",         "vq2");
   vq3         = gst_element_factory_make ("queue",         "vq3");
   voq         = gst_element_factory_make ("queue",         "voq");
-  tol1        = gst_element_factory_make ("timeoverlay",   "tol1");
-  tol2        = gst_element_factory_make ("timeoverlay",   "tol2");
-  tol3        = gst_element_factory_make ("timeoverlay",   "tol3");
+  txo1        = gst_element_factory_make ("textoverlay",   "txo1");
+  txo2        = gst_element_factory_make ("textoverlay",   "txo2");
+  txo3        = gst_element_factory_make ("textoverlay",   "txo3");
   tolo        = gst_element_factory_make ("timeoverlay",   "tolo");
   vtee        = gst_element_factory_make ("tee",           "vtee");
   venc        = gst_element_factory_make ("ffenc_flv",     "venc");
@@ -140,6 +144,12 @@ int main(int argc, char *argv[]) {
   sink        = gst_element_factory_make ("autovideosink", "sink");
 #endif
 
+  monitor     = gst_element_factory_make ("autovideosink", "monitor");
+  mtee        = gst_element_factory_make ("tee",           "mtee");
+  mq          = gst_element_factory_make ("queue",         "mq");
+  monscale    = gst_element_factory_make ("videoscale",    "monscale");
+  moncapsfil  = gst_element_factory_make ("capsfilter",    "moncapsfil");
+
 
 
   /* Create the empty pipeline */
@@ -147,8 +157,9 @@ int main(int argc, char *argv[]) {
    
   if (!pipeline || !source || !source2 || !source3 || !selector || 
       !vdec1 || !vdec2 || !vdec3 ||
-      !vq1 || !vq2 || !vq3 || !voq || !tol1 || !tol2 || !tolo || !vtee ||
-      !vconv || !venc || !vencq || !vmuxq || !mux ||
+      !vq1 || !vq2 || !vq3 || !voq || !txo1 || !txo2 || !tolo || !vtee ||
+      !vconv || !venc || !vencq || !vmuxq || !mux || 
+      !monitor || !mtee || !mq || !monscale || !moncapsfil ||
 #ifdef SCREEN_SINK
       !sink
 #endif
@@ -176,9 +187,9 @@ int main(int argc, char *argv[]) {
   gst_bin_add (GST_BIN (pipeline), vq2);
   gst_bin_add (GST_BIN (pipeline), vq3);
   gst_bin_add (GST_BIN (pipeline), voq);
-  gst_bin_add (GST_BIN (pipeline), tol1);
-  gst_bin_add (GST_BIN (pipeline), tol2);
-  gst_bin_add (GST_BIN (pipeline), tol3);
+  gst_bin_add (GST_BIN (pipeline), txo1);
+  gst_bin_add (GST_BIN (pipeline), txo2);
+  gst_bin_add (GST_BIN (pipeline), txo3);
   gst_bin_add (GST_BIN (pipeline), tolo);
   gst_bin_add (GST_BIN (pipeline), vtee);
   gst_bin_add (GST_BIN (pipeline), venc);
@@ -186,6 +197,13 @@ int main(int argc, char *argv[]) {
   gst_bin_add (GST_BIN (pipeline), vencq);
   gst_bin_add (GST_BIN (pipeline), vmuxq);
   gst_bin_add (GST_BIN (pipeline), mux);
+
+  gst_bin_add (GST_BIN (pipeline), monitor);
+  gst_bin_add (GST_BIN (pipeline), mtee);
+  gst_bin_add (GST_BIN (pipeline), mq);
+  gst_bin_add (GST_BIN (pipeline), monscale);
+  gst_bin_add (GST_BIN (pipeline), moncapsfil);
+
 #ifdef FILE_SINK
   gst_bin_add (GST_BIN (pipeline), filesink);
 #endif
@@ -198,7 +216,7 @@ int main(int argc, char *argv[]) {
 
 /*****   VIDEO 1 INPUT SIDE  ***/
 
-  if (gst_element_link_many (source, vq1, vdec1, tol1, selector, NULL) != TRUE) {
+  if (gst_element_link_many (source, vq1, vdec1, txo1, selector, NULL) != TRUE) {
     g_printerr ("Video input 1  pipe could not be linked.\n");
     gst_object_unref (pipeline);
     return -1;
@@ -206,7 +224,7 @@ int main(int argc, char *argv[]) {
 
 /*****   VIDEO 2 INPUT SIDE  ***/
 
-  if (gst_element_link_many (source2, vq2, vdec2, tol2, selector, NULL) != TRUE) {
+  if (gst_element_link_many (source2, vq2, vdec2, txo2, selector, NULL) != TRUE) {
     g_printerr ("Video input 2  pipe could not be linked.\n");
     gst_object_unref (pipeline);
     return -1;
@@ -214,7 +232,7 @@ int main(int argc, char *argv[]) {
 
 /*****   VIDEO 3 INPUT SIDE  ***/
 
-  if (gst_element_link_many (source3, vq3, vdec3, tol3, selector, NULL) != TRUE) {
+  if (gst_element_link_many (source3, vq3, vdec3, txo3, selector, NULL) != TRUE) {
     g_printerr ("Video input 3  pipe could not be linked.\n");
     gst_object_unref (pipeline);
     return -1;
@@ -223,19 +241,26 @@ int main(int argc, char *argv[]) {
 /*****   VIDEO OUTPUT SIDE ****/
 
 #ifdef SCREEN_SINK
- if (gst_element_link_many (selector, vencq, tolo, sink, NULL) != TRUE) {
+ if (gst_element_link_many (selector, mtee, vencq, tolo, sink, NULL) != TRUE) {
 #endif
 #ifdef RTMP_SINK
- if (gst_element_link_many (selector, tolo, vencq, venc, vmuxq, mux, voq, rtmpsink, NULL) != TRUE) {
+ if (gst_element_link_many (selector, mtee, tolo, vencq, venc, vmuxq, mux, voq, rtmpsink, NULL) != TRUE) {
 #endif
 #ifdef FILE_SINK
-  if (gst_element_link_many (selector, tolo, vencq, venc, vmuxq, mux, voq, filesink, NULL) != TRUE) {
+  if (gst_element_link_many (selector, mtee, tolo, vencq, venc, vmuxq, mux, voq, filesink, NULL) != TRUE) {
 #endif
     g_printerr ("Video output pipe could not be linked.\n");
     gst_object_unref (pipeline);
     return -1;
   }
 
+/*****   VIDEO MONITOR SIDE  ***/
+
+  if (gst_element_link_many (mtee, monscale, moncapsfil, mq, monitor, NULL) != TRUE) {
+    g_printerr ("Video monitor pipe could not be linked.\n");
+    gst_object_unref (pipeline);
+    return -1;
+  }
 
   /* Modify the source's properties */
 
@@ -252,6 +277,13 @@ int main(int argc, char *argv[]) {
 
   g_object_set (selector, "sync-streams", TRUE, NULL);
 
+  monCaps = gst_caps_new_simple ("video/x-raw-yuv",
+                           "width", G_TYPE_INT, 320,
+                           "height", G_TYPE_INT, 240,
+                           NULL);
+  g_object_set (G_OBJECT (moncapsfil), "caps", monCaps, NULL);
+
+
 #ifdef RTMP_SINK
   g_object_set (rtmpsink, "location",
   "rtmp://1.7669465.fme.ustream.tv/ustreamVideo/7669465/dX3r3M2m3mAfLwfA7hCa9YQXc3FntQum flashver=FME/2.5 (compatible; FMSc 1.0)",NULL);
@@ -262,20 +294,20 @@ int main(int argc, char *argv[]) {
   g_object_set (filesink,   "location", "stuff.flv", NULL);
 #endif
 
-  g_object_set (tol1, "halign","left", NULL);
-  g_object_set (tol1, "valign","top", NULL);
-  g_object_set (tol1, "text","Input 1:", NULL);
-  g_object_set (tol1, "shaded-background",TRUE, NULL);
+  g_object_set (txo1, "halign","left", NULL);
+  g_object_set (txo1, "valign","top", NULL);
+  g_object_set (txo1, "text","CH 1", NULL);
+  g_object_set (txo1, "shaded-background",TRUE, NULL);
   
-  g_object_set (tol2, "halign","left", NULL);
-  g_object_set (tol2, "valign","top", NULL);
-  g_object_set (tol2, "text","Input 2:", NULL);
-  g_object_set (tol2, "shaded-background",TRUE, NULL);
+  g_object_set (txo2, "halign","left", NULL);
+  g_object_set (txo2, "valign","top", NULL);
+  g_object_set (txo2, "text","CH 2", NULL);
+  g_object_set (txo2, "shaded-background",TRUE, NULL);
 
-  g_object_set (tol3, "halign","left", NULL);
-  g_object_set (tol3, "valign","top", NULL);
-  g_object_set (tol3, "text","Input 3:", NULL);
-  g_object_set (tol3, "shaded-background",TRUE, NULL);
+  g_object_set (txo3, "halign","left", NULL);
+  g_object_set (txo3, "valign","top", NULL);
+  g_object_set (txo3, "text","CH 3", NULL);
+  g_object_set (txo3, "shaded-background",TRUE, NULL);
 
   g_object_set (tolo, "halign","right", NULL);
   g_object_set (tolo, "valign","top", NULL);

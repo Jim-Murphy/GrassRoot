@@ -1,5 +1,9 @@
 #include <gst/gst.h>
-  
+
+//#define SCREEN_SINK
+//#define FILE_SINK
+#define RTMP_SINK  
+
 static GstElement *pipeline;
 
 static int active_channel = 0;
@@ -105,9 +109,15 @@ int main(int argc, char *argv[]) {
   vencq       = gst_element_factory_make ("queue",         "vencq");
   vmuxq       = gst_element_factory_make ("queue",    "vmuxq");
   mux         = gst_element_factory_make ("flvmux",        "mux");
-//  filesink    = gst_element_factory_make ("filesink",      "filesink");
+#ifdef FILE_SINK
+  filesink    = gst_element_factory_make ("filesink",      "filesink");
+#endif
+#ifdef RTMP_SINK
   rtmpsink    = gst_element_factory_make ("rtmpsink",      "rtmpsink");
-//  sink        = gst_element_factory_make ("autovideosink", "sink");
+#endif
+#ifdef SCREEN_SINK
+  sink        = gst_element_factory_make ("autovideosink", "sink");
+#endif
 
 
 
@@ -118,9 +128,15 @@ int main(int argc, char *argv[]) {
       !vdec1 || !vdec2 || !vdec3 ||
       !vq1 || !vq2 || !vq3 || !voq || !tol1 || !tol2 || !tolo || !vtee ||
       !vconv || !venc || !vencq || !vmuxq || !mux ||
-//      !sink
-//      !filesink  
+#ifdef SCREEN_SINK
+      !sink
+#endif
+#ifdef FILE_SINK
+      !filesink  
+#endif
+#ifdef RTMP_SINK
       !rtmpsink 
+#endif
       ) {
     g_printerr ("Not all elements could be created.\n");
     return -1;
@@ -149,9 +165,15 @@ int main(int argc, char *argv[]) {
   gst_bin_add (GST_BIN (pipeline), vencq);
   gst_bin_add (GST_BIN (pipeline), vmuxq);
   gst_bin_add (GST_BIN (pipeline), mux);
-//  gst_bin_add (GST_BIN (pipeline), filesink);
+#ifdef FILE_SINK
+  gst_bin_add (GST_BIN (pipeline), filesink);
+#endif
+#ifdef RTMP_SINK
   gst_bin_add (GST_BIN (pipeline), rtmpsink);
-//  gst_bin_add (GST_BIN (pipeline), sink);
+#endif
+#ifdef SCREEN_SINK
+  gst_bin_add (GST_BIN (pipeline), sink);
+#endif
 
 /*****   VIDEO 1 INPUT SIDE  ***/
 
@@ -179,8 +201,15 @@ int main(int argc, char *argv[]) {
 
 /*****   VIDEO OUTPUT SIDE ****/
 
-//JSM  if (gst_element_link_many (selector, vencq, tolo, sink, NULL) != TRUE) {
-  if (gst_element_link_many (selector, tolo, vencq, venc, vmuxq, mux, voq, rtmpsink, NULL) != TRUE) {
+#ifdef SCREEN_SINK
+ if (gst_element_link_many (selector, vencq, tolo, sink, NULL) != TRUE) {
+#endif
+#ifdef RTMP_SINK
+ if (gst_element_link_many (selector, tolo, vencq, venc, vmuxq, mux, voq, rtmpsink, NULL) != TRUE) {
+#endif
+#ifdef FILE_SINK
+  if (gst_element_link_many (selector, tolo, vencq, venc, vmuxq, mux, voq, filesink, NULL) != TRUE) {
+#endif
     g_printerr ("Video output pipe could not be linked.\n");
     gst_object_unref (pipeline);
     return -1;
@@ -202,9 +231,15 @@ int main(int argc, char *argv[]) {
 
   g_object_set (selector, "sync-streams", TRUE, NULL);
 
+#ifdef RTMP_SINK
   g_object_set (rtmpsink, "location",
   "rtmp://1.7669465.fme.ustream.tv/ustreamVideo/7669465/dX3r3M2m3mAfLwfA7hCa9YQXc3FntQum flashver=FME/2.5 (compatible; FMSc 1.0)",NULL);
   g_object_set (rtmpsink, "sync", FALSE, NULL);
+#endif
+
+#ifdef FILE_SINK
+  g_object_set (filesink,   "location", "stuff.flv", NULL);
+#endif
 
   g_object_set (tol1, "halign","left", NULL);
   g_object_set (tol1, "valign","top", NULL);
@@ -232,7 +267,6 @@ int main(int argc, char *argv[]) {
   g_object_set (vencq, "max-size-bytes", 1000000000, NULL);
   g_object_set (voq,   "max-size-bytes", 1000000000, NULL);
 
-//  g_object_set (filesink,   "location", "stuff.flv", NULL);
 
 
   /* Start playing */

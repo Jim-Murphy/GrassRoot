@@ -192,6 +192,7 @@ int main(int argc, char *argv[]) {
   g_object_set (source, "location", "http://66.184.211.231/mjpg/video.mjpg", NULL);
   g_object_set (source2, "location", "http://webcam1.coloradocollege.edu/mjpg/video.mjpg", NULL);
   g_object_set (source3, "location", "http://128.153.6.47/mjpg/video.mjpg", NULL);
+//  g_object_set (source3, "location", "http://68.189.245.64:8088/videofeed", NULL);
   g_object_set (source, "do-timestamp", TRUE, NULL);
   g_object_set (source2, "do-timestamp", TRUE, NULL);
   g_object_set (source3, "do-timestamp", TRUE, NULL);

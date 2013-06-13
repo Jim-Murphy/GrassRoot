@@ -1,0 +1,4 @@
+v=0
+m=video 5000 RTP/AVP 96
+c=IN IP4 54.225.93.158
+a=rtpmap:96 MP4V-ES/90000

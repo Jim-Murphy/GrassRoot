@@ -3,7 +3,10 @@
 //#define SCREEN_SINK
 //#define FILE_SINK
 #define RTMP_SINK  
+
 //#define INCLUDE_MONITOR
+#define REMOTE_MONITOR
+
 
 static GstElement *pipeline;
 
@@ -102,6 +105,8 @@ int main(int argc, char *argv[]) {
   GstElement *vconv, *venc, *vencq, *vmuxq, *mux, *rtmpq;
   GstElement *filesink, *rtmpsink;
   GstElement *monscale, *moncapsfil;
+  GstElement *remmonencq, *remmonenc, *remmonpayq, *remmonpay, *remmonsink;
+
   GstBus *bus;
   GstPad *srcpad, *sinkpad, *pad, *pad0, *pad1;
   GstMessage *msg;
@@ -157,6 +162,17 @@ int main(int argc, char *argv[]) {
   monscale    = gst_element_factory_make ("videoscale",    "monscale");
   moncapsfil  = gst_element_factory_make ("capsfilter",    "moncapsfil");
 
+
+  remmonenc   = gst_element_factory_make ("ffenc_mpeg4",  "remmonenc");
+  remmonencq  = gst_element_factory_make ("queue",        "remmonencq");
+  remmonpay   = gst_element_factory_make ("rtpmp4vpay",   "remmonpay");
+  remmonpayq  = gst_element_factory_make ("queue",        "remmonpayq");
+#ifdef REMOTE_MONITOR
+  remmonsink = gst_element_factory_make ("udpsink",    "remmonsink");
+#else
+  remmonsink = gst_element_factory_make ("fakesink",   "remmonsink");
+#endif
+
   /* Create the empty pipeline */
   pipeline = gst_pipeline_new ("test-pipeline");
    
@@ -165,6 +181,7 @@ int main(int argc, char *argv[]) {
       !vq1 || !vq2 || !vq3 || !voq || !txo1 || !txo2 || !tolo || 
       !vconv || !venc || !vencq || !vmuxq || !mux || 
       !monitor || !mtee || !mq || !mq2 || !monscale || !moncapsfil ||
+      !remmonenc || !remmonpay || !remmonsink || !remmonencq || !remmonpayq ||
 
 #ifdef SCREEN_SINK
       !sink
@@ -209,6 +226,12 @@ int main(int argc, char *argv[]) {
   gst_bin_add (GST_BIN (pipeline), mq2);
   gst_bin_add (GST_BIN (pipeline), monscale);
   gst_bin_add (GST_BIN (pipeline), moncapsfil);
+
+  gst_bin_add (GST_BIN (pipeline), remmonenc);
+  gst_bin_add (GST_BIN (pipeline), remmonencq);
+  gst_bin_add (GST_BIN (pipeline), remmonpay);
+  gst_bin_add (GST_BIN (pipeline), remmonpayq);
+  gst_bin_add (GST_BIN (pipeline), remmonsink);
 
 #ifdef FILE_SINK
   gst_bin_add (GST_BIN (pipeline), filesink);
@@ -264,6 +287,14 @@ int main(int argc, char *argv[]) {
 
   if (gst_element_link_many (mtee, mq2, monscale, moncapsfil, mq, monitor, NULL) != TRUE) {
     g_printerr ("Video monitor pipe could not be linked.\n");
+    gst_object_unref (pipeline);
+    return -1;
+  }
+
+/*****   REMOTE MONITOR SIDE  ***/
+
+  if (gst_element_link_many (mtee, remmonencq, remmonenc, remmonpayq, remmonpay, remmonsink, NULL) != TRUE) {
+    g_printerr ("Remotemonitor pipe could not be linked.\n");
     gst_object_unref (pipeline);
     return -1;
   }
@@ -328,6 +359,14 @@ int main(int argc, char *argv[]) {
   g_object_set (voq,   "max-size-bytes", 1000000000, NULL);
   g_object_set (mq,   "max-size-bytes", 1000000000, NULL);
   g_object_set (mq2,  "max-size-bytes", 1000000000, NULL);
+  g_object_set (remmonencq,  "max-size-bytes", 1000000000, NULL);
+  g_object_set (remmonpayq,  "max-size-bytes", 1000000000, NULL);
+
+#ifdef REMOTE_MONITOR
+  g_object_set (remmonpay,    "send-config", TRUE , NULL);
+  g_object_set (remmonsink,   "host", "127.0.0.1" , NULL);
+  g_object_set (remmonsink,   "port", 5000 , NULL);
+#endif
 
   /* Start playing */
   ret = gst_element_set_state (pipeline, GST_STATE_PLAYING);

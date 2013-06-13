@@ -24,9 +24,9 @@ int main (int argc, char *argv[])
 
   strcpy (cmd, "( udpsrc port=5000 ");
   strcat (cmd, " ! application/x-rtp, clock-rate=90000,payload=96 ");
-  strcat (cmd, " ! rtpmp4vdepay queue-delay=0 ");
+  strcat (cmd, " ! rtpjpegdepay queue-delay=0 ");
   strcat (cmd, " ! queue ");
-  strcat (cmd, " ! rtpmp4vpay name=pay0 pt=96 )");
+  strcat (cmd, " ! rtpjpegpay name=pay0 pt=96 )");
 
   g_print("Sending command\n%s\n", cmd);
 

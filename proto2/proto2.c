@@ -164,9 +164,9 @@ int main(int argc, char *argv[]) {
 
 
   remmontol   = gst_element_factory_make ("timeoverlay",  "remmontol");
-  remmonenc   = gst_element_factory_make ("ffenc_mpeg4",  "remmonenc");
+  remmonenc   = gst_element_factory_make ("ffenc_mjpeg",  "remmonenc");
   remmonencq  = gst_element_factory_make ("queue",        "remmonencq");
-  remmonpay   = gst_element_factory_make ("rtpmp4vpay",   "remmonpay");
+  remmonpay   = gst_element_factory_make ("rtpjpegpay",   "remmonpay");
   remmonpayq  = gst_element_factory_make ("queue",        "remmonpayq");
 #ifdef REMOTE_MONITOR
   remmonsink = gst_element_factory_make ("udpsink",    "remmonsink");
@@ -369,7 +369,6 @@ int main(int argc, char *argv[]) {
   g_object_set (remmontol, "valign","top", NULL);
   g_object_set (remmontol, "text","OUTPUT TIME:", NULL);
   g_object_set (remmontol, "shaded-background",TRUE, NULL);
-  g_object_set (remmonpay,    "send-config", TRUE , NULL);
   g_object_set (remmonsink,   "host", "127.0.0.1" , NULL);
   g_object_set (remmonsink,   "port", 5000 , NULL);
 #endif

@@ -22,20 +22,11 @@ int main (int argc, char *argv[])
   mapping = gst_rtsp_server_get_media_mapping (server);
   factory = gst_rtsp_media_factory_new ();
 
-//  strcpy (cmd, "( udpsrc port=5000 ");
-//  strcat (cmd, " ! application/x-rtp, clock-rate=90000,payload=96 ");
-//  strcat (cmd, " ! rtpmp4vdepay queue-delay=0 ");
-//  strcat (cmd, " ! queue ");
-//  strcat (cmd, " ! ffdec_mpeg4 ");
-  strcpy (cmd, "( videotestsrc ");
-  strcat (cmd, " ! video/x-raw-yuv,width=640,height=480,framerate=10/1 ");
-//  strcat (cmd, " ! queue ");
-  strcat (cmd, " ! x264enc ");
+  strcpy (cmd, "( udpsrc port=5000 ");
+  strcat (cmd, " ! application/x-rtp, clock-rate=90000,payload=96 ");
+  strcat (cmd, " ! rtpmp4vdepay queue-delay=0 ");
   strcat (cmd, " ! queue ");
-//  strcat (cmd, " ! rtph264pay name=pay0 pt=96 )");
-  strcat (cmd, " ! rtph264pay name=pay0 pt=96 ");
-  strcat (cmd, " ! audiotestsrc ! audio/x-raw-int,rate=8000 ! alawenc ");
-  strcat (cmd, " ! rtppcmapay name=pay1 pt=97 )");
+  strcat (cmd, " ! rtpmp4vpay name=pay0 pt=96 )");
 
   g_print("Sending command\n%s\n", cmd);
 

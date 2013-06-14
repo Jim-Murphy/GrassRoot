@@ -1,11 +1,11 @@
 #include <gst/gst.h>
 
-#define SCREEN_SINK
+//#define SCREEN_SINK
 //#define FILE_SINK
-//#define RTMP_SINK  
+#define RTMP_SINK  
 
-#define INCLUDE_MONITOR
-//#define REMOTE_MONITOR
+//#define INCLUDE_MONITOR
+#define REMOTE_MONITOR
 
 
 static GstElement *pipeline;

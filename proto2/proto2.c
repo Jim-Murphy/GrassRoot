@@ -154,6 +154,8 @@ int main(int argc, char *argv[]) {
   GstElement *monscale, *moncapsfil;
   GstElement *remmonscale, *remmoncapsfil;
   GstElement *remmontol, *remmonencq, *remmonenc, *remmonpayq, *remmonpay, *remmonsink;
+  GstElement *vmixq, *vmix, *vpipq;
+  GstElement *outscale, *outcapsfil;
 
   GstBus *bus;
   GstPad *srcpad, *sinkpad, *pad, *pad0, *pad1;
@@ -163,6 +165,7 @@ int main(int argc, char *argv[]) {
 
   GstCaps *pipCaps;
   GstCaps *monCaps;
+  GstCaps *outCaps;
   
   /* Initialize GStreamer */
   gst_init (&argc, &argv);
@@ -189,6 +192,11 @@ int main(int argc, char *argv[]) {
   vencq       = gst_element_factory_make ("queue",         "vencq");
   vmuxq       = gst_element_factory_make ("queue",    "vmuxq");
   mux         = gst_element_factory_make ("flvmux",        "mux");
+
+  vmixq       = gst_element_factory_make ("queue",         "vmixq");
+  vpipq       = gst_element_factory_make ("queue",         "vpipq");
+  vmix        = gst_element_factory_make ("videomixer",    "vmix");
+
 #ifdef FILE_SINK
   filesink    = gst_element_factory_make ("filesink",      "filesink");
 #endif
@@ -204,6 +212,9 @@ int main(int argc, char *argv[]) {
 #else
   monitor     = gst_element_factory_make ("fakesink",   "monitor");
 #endif
+
+  outscale    = gst_element_factory_make ("videoscale",    "outscale");
+  outcapsfil  = gst_element_factory_make ("capsfilter",    "outcapsfil");
 
   mtee        = gst_element_factory_make ("tee",           "mtee");
   mq          = gst_element_factory_make ("queue",         "mq");
@@ -232,6 +243,7 @@ int main(int argc, char *argv[]) {
       !vdec1 || !vdec2 || !vdec3 ||
       !vq1 || !vq2 || !vq3 || !voq || !txo1 || !txo2 || !usrtextover || !tolo || 
       !vconv || !venc || !vencq || !vmuxq || !mux || 
+      !vmixq || !vpipq || !vmix || !outscale || !outcapsfil ||
       !monitor || !mtee || !mq || !mq2 || !monscale || !moncapsfil ||
       !remmonscale || !remmoncapsfil ||
       !remmontol || !remmonenc || !remmonpay || !remmonsink || !remmonencq || !remmonpayq ||
@@ -273,6 +285,11 @@ int main(int argc, char *argv[]) {
   gst_bin_add (GST_BIN (pipeline), vencq);
   gst_bin_add (GST_BIN (pipeline), vmuxq);
   gst_bin_add (GST_BIN (pipeline), mux);
+  gst_bin_add (GST_BIN (pipeline), vmixq);
+  gst_bin_add (GST_BIN (pipeline), vpipq);
+  gst_bin_add (GST_BIN (pipeline), vmix);
+  gst_bin_add (GST_BIN (pipeline), outscale);
+  gst_bin_add (GST_BIN (pipeline), outcapsfil);
 
   gst_bin_add (GST_BIN (pipeline), monitor);
   gst_bin_add (GST_BIN (pipeline), mtee);
@@ -338,8 +355,8 @@ int main(int argc, char *argv[]) {
      }
   }
   
-  if (gst_element_link_many (usrtextover, mtee, tolo, vencq, NULL) != TRUE) {
-    g_printerr ("Video output pipe1 could not be linked.\n");
+  if (gst_element_link_many (usrtextover, outscale, outcapsfil, mtee, tolo, vencq, NULL) != TRUE) {
+    g_printerr ("Video output pipe could not be linked.\n");
     gst_object_unref (pipeline);
     return -1;
   }
@@ -390,10 +407,17 @@ int main(int argc, char *argv[]) {
 
   g_object_set (selector, "sync-streams", TRUE, NULL);
 
+  outCaps = gst_caps_new_simple ("video/x-raw-yuv",
+                           "width", G_TYPE_INT, 640,
+                           "height", G_TYPE_INT, 480,
+                           NULL);
+  
   monCaps = gst_caps_new_simple ("video/x-raw-yuv",
                            "width", G_TYPE_INT, 320,
                            "height", G_TYPE_INT, 240,
                            NULL);
+
+  g_object_set (G_OBJECT (outcapsfil), "caps", outCaps, NULL);
 
   g_object_set (G_OBJECT (moncapsfil), "caps", monCaps, NULL);
   g_object_set (G_OBJECT (remmoncapsfil), "caps", monCaps, NULL);
@@ -411,20 +435,20 @@ int main(int argc, char *argv[]) {
 
   g_object_set (txo1, "halign","left", NULL);
   g_object_set (txo1, "valign","top", NULL);
-  g_object_set (txo1, "text","CH 1", NULL);
-  g_object_set (txo1, "shaded-background",TRUE, NULL);
+  g_object_set (txo1, "text","1", NULL);
+  g_object_set (txo1, "shaded-background",FALSE, NULL);
   g_object_set (txo1, "font-desc","Sans Bold 12", NULL);
   
   g_object_set (txo2, "halign","left", NULL);
   g_object_set (txo2, "valign","top", NULL);
-  g_object_set (txo2, "text","CH 2", NULL);
-  g_object_set (txo2, "shaded-background",TRUE, NULL);
+  g_object_set (txo2, "text","2", NULL);
+  g_object_set (txo2, "shaded-background",FALSE, NULL);
   g_object_set (txo2, "font-desc","Sans Bold 12", NULL);
 
   g_object_set (txo3, "halign","left", NULL);
   g_object_set (txo3, "valign","top", NULL);
-  g_object_set (txo3, "text","CH 3", NULL);
-  g_object_set (txo3, "shaded-background",TRUE, NULL);
+  g_object_set (txo3, "text","3", NULL);
+  g_object_set (txo3, "shaded-background",FALSE, NULL);
   g_object_set (txo3, "font-desc","Sans Bold 12", NULL);
 
   g_object_set (tolo, "halign","right", NULL);
@@ -447,6 +471,8 @@ int main(int argc, char *argv[]) {
   g_object_set (mq2,  "max-size-bytes", 1000000000, NULL);
   g_object_set (remmonencq,  "max-size-bytes", 1000000000, NULL);
   g_object_set (remmonpayq,  "max-size-bytes", 1000000000, NULL);
+  g_object_set (vmixq,  "max-size-bytes", 1000000000, NULL);
+  g_object_set (vpipq,  "max-size-bytes", 1000000000, NULL);
 
 #ifdef REMOTE_MONITOR
   g_object_set (remmontol, "halign","right", NULL);

@@ -1,17 +1,43 @@
 #include <gst/gst.h>
 
-//#define SCREEN_SINK
+#define SCREEN_SINK
 //#define FILE_SINK
-#define RTMP_SINK  
+//#define RTMP_SINK  
 
-//#define INCLUDE_MONITOR
-#define REMOTE_MONITOR
+#define INCLUDE_MONITOR
+//#define REMOTE_MONITOR
 
 
 static GstElement *pipeline;
 
 static int active_channel = 0;
 static int num_channels = 3; 
+
+static void add_text (GstElement * pipeline, gchar *text)
+
+{
+   
+  GstElement *overlay;
+
+  overlay = gst_bin_get_by_name (GST_BIN(pipeline), "usrtextover");
+
+  g_object_set (overlay, "text", text, NULL);
+  g_object_set (overlay, "silent", FALSE, NULL);
+ 
+}
+
+static void clear_text (GstElement * pipeline)
+
+{
+   
+  GstElement *overlay;
+
+  overlay = gst_bin_get_by_name (GST_BIN(pipeline), "usrtextover");
+
+  g_object_set (overlay, "silent", TRUE, NULL);
+  g_object_set (overlay, "text", "", NULL);
+ 
+}
 
 
 static gboolean switch_channel (GstElement * pipeline, int new_channel)
@@ -70,6 +96,8 @@ static gboolean check_cmd (GstElement * pipeline) {
    gboolean result;
    FILE *cmd_file;
    char line[80];
+   char command[80];
+   char argument[80];
 
 
   GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "foo");
@@ -80,17 +108,35 @@ static gboolean check_cmd (GstElement * pipeline) {
       if (fgets(line, 80, cmd_file) != NULL)
       {
 	 /* get a line, up to 80 chars from cmd file.  done if NULL */
-	 sscanf (line, "%d", &next_channel);
-         // g_print("Requesting channel %d\n", next_channel); 
+	 sscanf (line, "%s", &command[0]);
       }
 
       fclose(cmd_file);
       remove("/tmp/grctl");
 
-      result = switch_channel (pipeline, next_channel);  
+      if (strcmp(command,"switch")==0) {
+  
+         sscanf (line, "%s %d", &command[0], &next_channel);
+         result = switch_channel (pipeline, next_channel);  
+
+      } else if (strcmp(command, "text")==0)  {
+
+         sscanf (line, "%s %s", &command[0], &argument[0]);
+       
+         if (strcmp(argument, "off")==0) {   // if "off" clear it, otherwise display it
+            clear_text(pipeline); 
+         } else {
+            add_text(pipeline, &line[5]);
+         }
+
+      } else if (strcmp(command, "pip")==0)  {
+         g_print("PIP command \n");
+      } else {
+         g_print("unknown command \n");
+      }
+
 
    }
-
 
    return TRUE;
 
@@ -102,6 +148,7 @@ int main(int argc, char *argv[]) {
   GstElement *vdec1, *vdec2, *vdec3;
   GstElement *vq1, *vq2, *vq3, *voq;
   GstElement *txo1, *txo2, *txo3, *tolo;
+  GstElement *usrtextover;
   GstElement *vconv, *venc, *vencq, *vmuxq, *mux, *rtmpq;
   GstElement *filesink, *rtmpsink;
   GstElement *monscale, *moncapsfil;
@@ -134,6 +181,7 @@ int main(int argc, char *argv[]) {
   txo1        = gst_element_factory_make ("textoverlay",   "txo1");
   txo2        = gst_element_factory_make ("textoverlay",   "txo2");
   txo3        = gst_element_factory_make ("textoverlay",   "txo3");
+  usrtextover = gst_element_factory_make ("textoverlay",   "usrtextover");
   tolo        = gst_element_factory_make ("timeoverlay",   "tolo");
   venc        = gst_element_factory_make ("ffenc_flv",     "venc");
   vconv       = gst_element_factory_make ("ffmpegcolorspace",  "vconv");
@@ -179,7 +227,7 @@ int main(int argc, char *argv[]) {
    
   if (!pipeline || !source || !source2 || !source3 || !selector || 
       !vdec1 || !vdec2 || !vdec3 ||
-      !vq1 || !vq2 || !vq3 || !voq || !txo1 || !txo2 || !tolo || 
+      !vq1 || !vq2 || !vq3 || !voq || !txo1 || !txo2 || !usrtextover || !tolo || 
       !vconv || !venc || !vencq || !vmuxq || !mux || 
       !monitor || !mtee || !mq || !mq2 || !monscale || !moncapsfil ||
       !remmontol || !remmonenc || !remmonpay || !remmonsink || !remmonencq || !remmonpayq ||
@@ -214,6 +262,7 @@ int main(int argc, char *argv[]) {
   gst_bin_add (GST_BIN (pipeline), txo1);
   gst_bin_add (GST_BIN (pipeline), txo2);
   gst_bin_add (GST_BIN (pipeline), txo3);
+  gst_bin_add (GST_BIN (pipeline), usrtextover);
   gst_bin_add (GST_BIN (pipeline), tolo);
   gst_bin_add (GST_BIN (pipeline), venc);
   gst_bin_add (GST_BIN (pipeline), vconv);
@@ -271,16 +320,34 @@ int main(int argc, char *argv[]) {
 
 /*****   VIDEO OUTPUT SIDE ****/
 
+
+  {
+     GstPad *srcPad, *sinkPad;
+
+     srcPad=gst_element_get_static_pad ( selector, "src");
+     sinkPad=gst_element_get_static_pad ( usrtextover, "video_sink");
+    
+     if (gst_pad_link(srcPad,sinkPad)) {
+        g_print("link of selector to textoverlay failed,\n");
+     }
+  }
+  
+  if (gst_element_link_many (usrtextover, mtee, tolo, vencq, NULL) != TRUE) {
+    g_printerr ("Video output pipe1 could not be linked.\n");
+    gst_object_unref (pipeline);
+    return -1;
+  }
+
 #ifdef SCREEN_SINK
- if (gst_element_link_many (selector, mtee, vencq, tolo, sink, NULL) != TRUE) {
+  if (gst_element_link_many (vencq, sink, NULL) != TRUE) {
 #endif
 #ifdef RTMP_SINK
- if (gst_element_link_many (selector, mtee, tolo, vencq, venc, vmuxq, mux, voq, rtmpsink, NULL) != TRUE) {
+  if (gst_element_link_many (vencq, venc, vmuxq, mux, voq, rtmpsink, NULL) != TRUE) {
 #endif
 #ifdef FILE_SINK
-  if (gst_element_link_many (selector, mtee, tolo, vencq, venc, vmuxq, mux, voq, filesink, NULL) != TRUE) {
+  if (gst_element_link_many (vencq, venc, vmuxq, mux, voq, filesink, NULL) != TRUE) {
 #endif
-    g_printerr ("Video output pipe could not be linked.\n");
+    g_printerr ("Video output pipe2 could not be linked.\n");
     gst_object_unref (pipeline);
     return -1;
   }
@@ -353,6 +420,12 @@ int main(int argc, char *argv[]) {
   g_object_set (tolo, "valign","top", NULL);
   g_object_set (tolo, "text","OUTPUT TIME:", NULL);
   g_object_set (tolo, "shaded-background",TRUE, NULL);
+
+  g_object_set (usrtextover, "halign","center", NULL);
+  g_object_set (usrtextover, "valign","bottom", NULL);
+  g_object_set (usrtextover, "text","", NULL);
+  g_object_set (usrtextover, "font-desc","Sans Bold 20", NULL);
+  g_object_set (usrtextover, "silent",FALSE, NULL);
 
   g_object_set (vq1, "max-size-bytes", 1000000000, NULL);
   g_object_set (vq2, "max-size-bytes", 1000000000, NULL);

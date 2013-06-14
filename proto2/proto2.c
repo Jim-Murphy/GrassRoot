@@ -394,16 +394,18 @@ int main(int argc, char *argv[]) {
 
   /* Modify the source's properties */
 
+//Key West Swimming Pool:
   g_object_set (source, "location", "http://66.184.211.231/mjpg/video.mjpg", NULL);
-  g_object_set (source2, "location", "http://webcam1.coloradocollege.edu/mjpg/video.mjpg", NULL);
+//Colorado College, ColoSprings:
+//  g_object_set (source2, "location", "http://webcam1.coloradocollege.edu/mjpg/video.mjpg", NULL);
 // Clarkson Univ Stu Center:
 //  g_object_set (source3, "location", "http://128.153.6.47/mjpg/video.mjpg", NULL);
 // Kestrel Nest, Lincoln, NE
-  g_object_set (source3, "location", "http://164.119.54.138/mjpg/video.mjpg", NULL);
+  g_object_set (source2, "location", "http://164.119.54.138/mjpg/video.mjpg", NULL);
 // Dartmouth College:
 //  g_object_set (source3, "location", "http://wc2.dartmouth.edu/mjpg/video.mjpg", NULL);
 // St. Joes Yacht Club, Michigan:
-//  g_object_set (source3, "location", "http://sjryc.axiscam.net/axis-cgi/mjpg/video.cgi", NULL);
+  g_object_set (source3, "location", "http://sjryc.axiscam.net/axis-cgi/mjpg/video.cgi", NULL);
 // Ocean City Boardwalk:
 //  g_object_set (source3, "location", "http://74.94.55.182/axis-cgi/mjpg/video.cgi", NULL);
 

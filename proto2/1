@@ -1,1 +1,1 @@
-echo "1" > /tmp/grctl
+echo "switch 1" > /tmp/grctl

@@ -152,6 +152,7 @@ int main(int argc, char *argv[]) {
   GstElement *vconv, *venc, *vencq, *vmuxq, *mux, *rtmpq;
   GstElement *filesink, *rtmpsink;
   GstElement *monscale, *moncapsfil;
+  GstElement *remmonscale, *remmoncapsfil;
   GstElement *remmontol, *remmonencq, *remmonenc, *remmonpayq, *remmonpay, *remmonsink;
 
   GstBus *bus;
@@ -211,6 +212,8 @@ int main(int argc, char *argv[]) {
   moncapsfil  = gst_element_factory_make ("capsfilter",    "moncapsfil");
 
 
+  remmonscale   = gst_element_factory_make ("videoscale",    "remmonscale");
+  remmoncapsfil = gst_element_factory_make ("capsfilter",    "remmoncapsfil");
   remmontol   = gst_element_factory_make ("timeoverlay",  "remmontol");
   remmonenc   = gst_element_factory_make ("ffenc_mjpeg",  "remmonenc");
   remmonencq  = gst_element_factory_make ("queue",        "remmonencq");
@@ -230,6 +233,7 @@ int main(int argc, char *argv[]) {
       !vq1 || !vq2 || !vq3 || !voq || !txo1 || !txo2 || !usrtextover || !tolo || 
       !vconv || !venc || !vencq || !vmuxq || !mux || 
       !monitor || !mtee || !mq || !mq2 || !monscale || !moncapsfil ||
+      !remmonscale || !remmoncapsfil ||
       !remmontol || !remmonenc || !remmonpay || !remmonsink || !remmonencq || !remmonpayq ||
 
 #ifdef SCREEN_SINK
@@ -277,6 +281,8 @@ int main(int argc, char *argv[]) {
   gst_bin_add (GST_BIN (pipeline), monscale);
   gst_bin_add (GST_BIN (pipeline), moncapsfil);
 
+  gst_bin_add (GST_BIN (pipeline), remmonscale);
+  gst_bin_add (GST_BIN (pipeline), remmoncapsfil);
   gst_bin_add (GST_BIN (pipeline), remmontol);
   gst_bin_add (GST_BIN (pipeline), remmonenc);
   gst_bin_add (GST_BIN (pipeline), remmonencq);
@@ -362,7 +368,8 @@ int main(int argc, char *argv[]) {
 
 /*****   REMOTE MONITOR SIDE  ***/
 
-  if (gst_element_link_many (mtee, remmontol, remmonencq, remmonenc, remmonpayq, remmonpay, remmonsink, NULL) != TRUE) {
+  if (gst_element_link_many (mtee, remmonscale, remmoncapsfil, remmontol, remmonencq, 
+                             remmonenc, remmonpayq, remmonpay, remmonsink, NULL) != TRUE) {
     g_printerr ("Remotemonitor pipe could not be linked.\n");
     gst_object_unref (pipeline);
     return -1;
@@ -389,6 +396,7 @@ int main(int argc, char *argv[]) {
                            NULL);
 
   g_object_set (G_OBJECT (moncapsfil), "caps", monCaps, NULL);
+  g_object_set (G_OBJECT (remmoncapsfil), "caps", monCaps, NULL);
 
 
 #ifdef RTMP_SINK
@@ -405,21 +413,24 @@ int main(int argc, char *argv[]) {
   g_object_set (txo1, "valign","top", NULL);
   g_object_set (txo1, "text","CH 1", NULL);
   g_object_set (txo1, "shaded-background",TRUE, NULL);
+  g_object_set (txo1, "font-desc","Sans Bold 12", NULL);
   
   g_object_set (txo2, "halign","left", NULL);
   g_object_set (txo2, "valign","top", NULL);
   g_object_set (txo2, "text","CH 2", NULL);
   g_object_set (txo2, "shaded-background",TRUE, NULL);
+  g_object_set (txo2, "font-desc","Sans Bold 12", NULL);
 
   g_object_set (txo3, "halign","left", NULL);
   g_object_set (txo3, "valign","top", NULL);
   g_object_set (txo3, "text","CH 3", NULL);
   g_object_set (txo3, "shaded-background",TRUE, NULL);
+  g_object_set (txo3, "font-desc","Sans Bold 12", NULL);
 
   g_object_set (tolo, "halign","right", NULL);
   g_object_set (tolo, "valign","top", NULL);
-  g_object_set (tolo, "text","OUTPUT TIME:", NULL);
   g_object_set (tolo, "shaded-background",TRUE, NULL);
+  g_object_set (tolo, "font-desc","Sans Bold 12", NULL);
 
   g_object_set (usrtextover, "halign","center", NULL);
   g_object_set (usrtextover, "valign","bottom", NULL);
@@ -440,8 +451,8 @@ int main(int argc, char *argv[]) {
 #ifdef REMOTE_MONITOR
   g_object_set (remmontol, "halign","right", NULL);
   g_object_set (remmontol, "valign","top", NULL);
-  g_object_set (remmontol, "text","OUTPUT TIME:", NULL);
   g_object_set (remmontol, "shaded-background",TRUE, NULL);
+  g_object_set (remmontol, "font-desc","Sans Bold 20", NULL);
   g_object_set (remmonsink,   "host", "127.0.0.1" , NULL);
   g_object_set (remmonsink,   "port", 5000 , NULL);
 #endif

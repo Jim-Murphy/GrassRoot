@@ -1,0 +1,1 @@
+echo "auto-sw $1" > /tmp/grctl

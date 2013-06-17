@@ -28,7 +28,7 @@ int main (int argc, char *argv[])
   strcat (cmd, " ! queue ");
   strcat (cmd, " ! rtpjpegpay name=pay0 pt=96 )");
 
-  g_print("Sending command\n%s\n", cmd);
+//  g_print("Sending command\n%s\n", cmd);
 
   gst_rtsp_media_factory_set_launch (factory, cmd);
 

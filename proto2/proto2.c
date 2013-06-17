@@ -12,6 +12,8 @@ static GstElement *pipeline;
 
 static int active_channel = 0;
 static int num_channels = 3; 
+static int auto_switch_interval = 0;
+static int auto_switch_countdown = 0;
 
 static void add_text (GstElement * pipeline, gchar *text)
 
@@ -116,6 +118,9 @@ static gboolean check_cmd (GstElement * pipeline) {
 
       if (strcmp(command,"switch")==0) {
   
+         auto_switch_interval = 0;   // turn off auto switching if we issue a
+         auto_switch_countdown = 0;  // manual switch command
+
          sscanf (line, "%s %d", &command[0], &next_channel);
          result = switch_channel (pipeline, next_channel);  
 
@@ -129,6 +134,17 @@ static gboolean check_cmd (GstElement * pipeline) {
             add_text(pipeline, &line[5]);
          }
 
+      } else if (strcmp(command, "auto-sw")==0)  {
+         sscanf (line, "%s %s", &command[0], &argument[0]);
+       
+         if (strcmp(argument, "off")==0) {   // if "off" stop switching
+            auto_switch_interval = 0;
+            auto_switch_countdown = 0;
+         } else {
+            sscanf (line, "%s %d", &command[0], &auto_switch_interval);
+            auto_switch_countdown = auto_switch_interval;
+         }
+
       } else if (strcmp(command, "pip")==0)  {
          g_print("PIP command \n");
       } else {
@@ -136,6 +152,20 @@ static gboolean check_cmd (GstElement * pipeline) {
       }
 
 
+   }
+
+   if (auto_switch_interval) {
+      auto_switch_countdown--;
+      if (auto_switch_countdown <= 0) {
+         auto_switch_countdown = auto_switch_interval;
+        
+         if (active_channel >= (num_channels - 1) ) {
+            switch_channel (pipeline, 1);
+         } else {
+            switch_channel (pipeline, active_channel + 2);
+         } 
+
+      }
    }
 
    return TRUE;

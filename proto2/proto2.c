@@ -2,7 +2,8 @@
 
 //#define SCREEN_SINK
 //#define FILE_SINK
-#define RTMP_SINK  
+//#define FLV_SINK  
+#define UDP_SINK
 
 //#define INCLUDE_MONITOR
 #define REMOTE_MONITOR
@@ -184,6 +185,7 @@ int main(int argc, char *argv[]) {
   GstElement *monscale, *moncapsfil;
   GstElement *remmonscale, *remmoncapsfil;
   GstElement *remmontol, *remmonencq, *remmonenc, *remmonpayq, *remmonpay, *remmonsink;
+  GstElement *udpenc, *udppayq, *udppay, *udpsink;
   GstElement *vmixq, *vmix, *vpipq;
   GstElement *outscale, *outcapsfil;
 
@@ -230,11 +232,14 @@ int main(int argc, char *argv[]) {
 #ifdef FILE_SINK
   filesink    = gst_element_factory_make ("filesink",      "filesink");
 #endif
-#ifdef RTMP_SINK
+#ifdef FLV_SINK
   rtmpsink    = gst_element_factory_make ("rtmpsink",      "rtmpsink");
 #endif
 #ifdef SCREEN_SINK
   sink        = gst_element_factory_make ("xvimagesink", "sink");
+#endif
+#ifdef UDP_SINK
+  udpsink     = gst_element_factory_make ("udpsink",     "udpsink");
 #endif
 
 #ifdef INCLUDE_MONITOR
@@ -252,6 +257,9 @@ int main(int argc, char *argv[]) {
   monscale    = gst_element_factory_make ("videoscale",    "monscale");
   moncapsfil  = gst_element_factory_make ("capsfilter",    "moncapsfil");
 
+  udpenc      = gst_element_factory_make ("ffenc_mjpeg", "udpenc");
+  udppayq     = gst_element_factory_make ("queue",       "udppayq");
+  udppay      = gst_element_factory_make ("rtpjpegpay",  "udppay");
 
   remmonscale   = gst_element_factory_make ("videoscale", "remmonscale");
   remmoncapsfil = gst_element_factory_make ("capsfilter", "remmoncapsfil");
@@ -277,6 +285,7 @@ int main(int argc, char *argv[]) {
       !monitor || !mtee || !mq || !mq2 || !monscale || !moncapsfil ||
       !remmonscale || !remmoncapsfil ||
       !remmontol || !remmonenc || !remmonpay || !remmonsink || !remmonencq || !remmonpayq ||
+      !udpenc || !udppayq || !udppay ||
 
 #ifdef SCREEN_SINK
       !sink
@@ -284,8 +293,11 @@ int main(int argc, char *argv[]) {
 #ifdef FILE_SINK
       !filesink  
 #endif
-#ifdef RTMP_SINK
+#ifdef FLV_SINK
       !rtmpsink 
+#endif
+#ifdef UDP_SINK
+      !udpsink 
 #endif
       ) {
     g_printerr ("Not all elements could be created.\n");
@@ -337,11 +349,18 @@ int main(int argc, char *argv[]) {
   gst_bin_add (GST_BIN (pipeline), remmonpayq);
   gst_bin_add (GST_BIN (pipeline), remmonsink);
 
+  gst_bin_add (GST_BIN (pipeline), udpenc);
+  gst_bin_add (GST_BIN (pipeline), udppayq);
+  gst_bin_add (GST_BIN (pipeline), udppay);
+
 #ifdef FILE_SINK
   gst_bin_add (GST_BIN (pipeline), filesink);
 #endif
-#ifdef RTMP_SINK
+#ifdef FLV_SINK
   gst_bin_add (GST_BIN (pipeline), rtmpsink);
+#endif
+#ifdef UDP_SINK
+  gst_bin_add (GST_BIN (pipeline), udpsink);
 #endif
 #ifdef SCREEN_SINK
   gst_bin_add (GST_BIN (pipeline), sink);
@@ -394,8 +413,11 @@ int main(int argc, char *argv[]) {
 #ifdef SCREEN_SINK
   if (gst_element_link_many (vencq, sink, NULL) != TRUE) {
 #endif
-#ifdef RTMP_SINK
+#ifdef FLV_SINK
   if (gst_element_link_many (vencq, venc, vmuxq, mux, voq, rtmpsink, NULL) != TRUE) {
+#endif
+#ifdef UDP_SINK
+  if (gst_element_link_many (vencq, udpenc, udppayq, udppay, udpsink, NULL) != TRUE) {
 #endif
 #ifdef FILE_SINK
   if (gst_element_link_many (vencq, venc, vmuxq, mux, voq, filesink, NULL) != TRUE) {
@@ -473,10 +495,15 @@ int main(int argc, char *argv[]) {
   g_object_set (G_OBJECT (remmoncapsfil), "caps", monCaps, NULL);
 
 
-#ifdef RTMP_SINK
+#ifdef FLV_SINK
   g_object_set (rtmpsink, "location",
   "rtmp://1.7669465.fme.ustream.tv/ustreamVideo/7669465/dX3r3M2m3mAfLwfA7hCa9YQXc3FntQum flashver=FME/2.5 (compatible; FMSc 1.0)",NULL);
   g_object_set (rtmpsink, "sync", FALSE, NULL);
+#endif
+
+#ifdef UDP_SINK
+  g_object_set (udpsink,   "host", "10.36.23.249" , NULL);
+  g_object_set (udpsink,   "port", 5000 , NULL);
 #endif
 
 #ifdef FILE_SINK
@@ -523,6 +550,7 @@ int main(int argc, char *argv[]) {
   g_object_set (remmonpayq,  "max-size-bytes", 1000000000, NULL);
   g_object_set (vmixq,  "max-size-bytes", 1000000000, NULL);
   g_object_set (vpipq,  "max-size-bytes", 1000000000, NULL);
+  g_object_set (udppayq,  "max-size-bytes", 1000000000, NULL);
 
 #ifdef REMOTE_MONITOR
   g_object_set (remmontol, "halign","right", NULL);
